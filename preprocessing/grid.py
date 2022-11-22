@@ -2,16 +2,17 @@ import numpy as np
 from shapely.geometry import Polygon, box
 import geopandas as gpd
 from sklearn.neighbors import KDTree
+from tqdm import tqdm
 
 class Observations:
     
 
-    def __init__(self, obs_gdf, total_bounds, shape:str='square', grid_res_deg:float=1.0, crs:str='epsg:4326'):
+    def __init__(self, obs_gdf, map_gdf:gpd.GeoDataFrame,shape:str='square', grid_res_deg:float=1.0, crs:str='epsg:4326'):
         
         self.gdf_obs = obs_gdf
-        self.total_bounds = total_bounds
+        self.total_bounds = map_gdf.total_bounds
         
-        self.min_x, self.min_y, self.max_x, self.max_y = total_bounds
+        self.min_x, self.min_y, self.max_x, self.max_y = self.total_bounds
         self.xrange = np.arange(self.min_x - grid_res_deg, self.max_x + grid_res_deg, grid_res_deg)
         self.yrange = np.arange(self.min_y - grid_res_deg, self.max_y + grid_res_deg, grid_res_deg)
         
@@ -21,10 +22,23 @@ class Observations:
         self.grid_gd = None #Geopandas frame -> one for every cell
         self.grid_np = None #Numpy array corresponding to Geopandas frame -> one for every cell
         self.grid_kde = None #geopandas frame that has the geometry, grid_id and a column for the probability that a species_id was observered there
+        self.land_mask = None
         
+        self.class_list = self.gdf_obs.species_id.unique()
+        self.num_classes = len(self.class_list)
+        
+        print("Gridding..")
         self.create_grid(shape = self.shape,
                          side_length = self.grid_resolution,
                          crs = self.crs)
+        
+        print("Creating Land Mask..")
+        self.create_mask(map_gdf.simplify(self.grid_resolution).geometry)
+        
+        self.prob_min = 1e-5
+        self.prob_max = 1.0
+        
+        
         
         print(len(self.xrange), len(self.yrange), self.grid_np.shape)
         
@@ -33,12 +47,40 @@ class Observations:
         returns the geoseries corresponding to the observation id
         """
         return self.gdf_obs.loc(idx)
+
+    
+    
+    def kde(self, radius:float=0.5, kernel:str='gaussian', display_every:int=100):
+        """Populates the grid_kde data structure
+           with 1 column per species_id for every grid_cell
+           **fingers crossed**
+        """
+        for id in tqdm(self.class_list):
+            # if i % display_every == 0:
+            #     print("Gridding and KDE for species ID ", id)
+            self.kernel_per_species(kde=True, chosen_id=id, radius=radius, kernel=kernel, cumulative=True)
+            
+    def save_kde(self, filename:str='geolifeclef_usa_kde'):
+        filename = filename + '.feather'
+        self.grid_kde.to_feather(filename)
+        
+    def load_kde(self, filename):
+        self.grid_kde = gpd.read_feather(filename)
+
     
     def get_kde(self):
         """Returns the outputs of the (cumulative) KDE fn
         """
         
         return self.grid_kde
+    
+    def clear_kde(self):
+        self.grid_kde = None
+        
+    def create_mask(self, geoseries):
+        self.land_mask = self.grid_gd.within(geoseries.iloc[0]).to_numpy()
+        self.grid_gd['mask'] = self.land_mask
+        # self.grid_np = self.grid_np[self.land_mask]
 
 
     def create_grid(self, shape='square', side_length=1.0, crs='epsg:4326'):
@@ -152,11 +194,9 @@ class Observations:
         # Return grid
         # return grid, np.asarray(xrange), np.asarray(yrange)
 
-    def reshape_for_display():
-        return
 
 
-    def kernel_per_species(self, kde:bool=True, chosen_id:int=0, radius:float=0.5, kernel:str='linear', cumulative:bool=False):
+    def kernel_per_species(self, kde:bool=True, chosen_id:int=0, cumulative:bool=False, radius:float=0.5, kernel:str='gaussian'):
 
         """
         Inputs:
@@ -175,6 +215,7 @@ class Observations:
 
         ##Group observations per cell:
         gdf_chosen = self.gdf_obs[self.gdf_obs.species_id==chosen_id]
+        # gdf_chosen = gdf_chosen[gdf_chosen.mask == True]
         
         # Remove duplicate counts
         # With intersect, those that fall on a boundary will be allocated to all cells that share that boundary
@@ -196,42 +237,45 @@ class Observations:
             #List of grids that have observations for this species
             chosen_grids = list(chosen_species_grid['grid_id'])
             # print(chosen_grids, chosen_species_grid)
+            #sanity check
+            if len(chosen_grids) == 0:
+                return 
             
             # Create training set for KDE
             x_train = self.grid_np[chosen_grids,:]
             y_train = chosen_species_grid['num_obs'].to_numpy()
 
             #Apply the KDE
-            y_hat = np.zeros_like(self.grid_np)
+            # y_hat = np.zeros_like(self.grid_np)
+            y_hat = np.zeros_like(self.land_mask)
 
             tree = KDTree(x_train)
             y_hat = tree.kernel_density(self.grid_np, h=radius, kernel=kernel)*(1*(radius**2))
             
             # y_hat /= y_hat.max()
-            print("Max y_hat = ", y_hat.max())
+            # print("Max y_hat = ", y_hat.max())
             #Cap all cells at 1
-            y_hat[y_hat>1.0] = 1.0
+            y_hat[y_hat > self.prob_max] = self.prob_max
+            y_hat[y_hat < self.prob_min] = 0.0
 
-            print("Shapes: X_train={:}, y_train={:}, arr_xy={:}, y_hat={:}, sum(y_hat)={:}" .format(x_train.shape, y_train.shape, self.grid_np.shape, y_hat.shape, y_hat.sum()))
-            y_hat_grid = y_hat.reshape(len(self.xrange), len(self.yrange))
-            # y_hat_grid = y_hat.reshape(x_range.shape[0], y_range.shape[0])
-            display = np.rot90(y_hat_grid)
+            # print("Shapes: X_train={:}, y_train={:}, arr_xy={:}, y_hat={:}, sum(y_hat)={:}" .format(x_train.shape, y_train.shape, self.grid_np.shape, y_hat.shape, y_hat.sum()))
+            # y_hat_grid = y_hat.reshape(len(self.xrange), len(self.yrange))
+            # # y_hat_grid = y_hat.reshape(x_range.shape[0], y_range.shape[0])
+            # display = np.rot90(y_hat_grid)
         
         
         #Create a new column name for this species
         col_name = 'prob_{}'.format(chosen_id)
-        
-        if cumulative and len(self.grid_kde)>0:
+        #Now convert back into a geopandas frame that has one entry for each grid cell
+        if cumulative:
+            if self.grid_kde is None: #not initialized yet
+                self.grid_kde = self.grid_gd.copy()
+            
             self.grid_kde[col_name] = y_hat.tolist()
             #no return
             
-        else: #Usually for the very first one
-            #Now convert back into a geopandas frame that has one entry for each grid cell
-            chosen_species_grid_kde = self.grid_gd.copy()
-            
-            chosen_species_grid_kde[col_name] = y_hat.tolist()
-            self.grid_kde = chosen_species_grid_kde
-        
-        
-            return self.grid_kde
+        else: #Only for one-time test usage
+            self.grid_kde = self.grid_gd.copy()
+            self.grid_kde[col_name] = y_hat.tolist()
+
     
