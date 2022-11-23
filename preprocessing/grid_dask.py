@@ -3,6 +3,60 @@ from shapely.geometry import Polygon, box
 import geopandas as gpd
 from sklearn.neighbors import KDTree
 from tqdm import tqdm
+import dask
+
+import dask_gateway
+gateway = dask_gateway.Gateway()
+cluster_options = gateway.cluster_options()
+
+client, cluster = None, None
+
+def check_for_existing_clusters():
+    if len(gateway.list_clusters()) == 0:
+        return False   
+    return True
+
+#max is 227
+def setup_dask_cluster(max=50, mem=16):
+    global cluster_options, cluster, client
+    
+    cluster_options["worker_memory"] = mem
+    
+    if check_for_existing_clusters():
+        print ("Clusters already exist, latching onto the first one")
+        
+        clusters = gateway.list_clusters()
+        cluster = gateway.connect(clusters[0].name)
+        
+        client = cluster.get_client()
+        
+    else:
+        print("Setting up new cluster..")
+        cluster = gateway.new_cluster(cluster_options, shutdown_on_close=False)
+        print("Getting client..")
+        client = cluster.get_client()
+        cluster.adapt(minimum=2, maximum=max)
+    
+    
+    print(client)
+    print(cluster.dashboard_link)
+    return cluster, client
+
+    
+def shutdown_all_clusters():
+    
+    clusters = gateway.list_clusters()
+    if clusters is not None:
+        for c in clusters:
+            cluster = gateway.connect(c.name)
+            cluster.shutdown()
+            print (cluster)
+    
+
+def dashboard():
+    return cluster.dashboard_link
+
+
 
 class Observations:
     
@@ -39,6 +93,8 @@ class Observations:
         self.prob_min = 1e-5
         self.prob_max = 1.0
         
+        global client, cluster
+        print(client, cluster.dashboard_link)
         
         # print(len(self.xrange), len(self.yrange), self.grid_np.shape)
         print(self.grid_np.shape)
@@ -50,16 +106,29 @@ class Observations:
         return self.gdf_obs.loc(idx)
 
     
-    
-    def kde(self, radius:float=0.5, kernel:str='gaussian', display_every:int=100):
+    # @dask.delayed
+    def kde_dask(self, grid_gd, grid_np, radius:float=0.5, kernel:str='gaussian'):
         """Populates the grid_kde data structure
            with 1 column per species_id for every grid_cell
            **fingers crossed**
         """
+        y_hats = []
+        print("Building Parallel Compute Graph")
+        
         for id in tqdm(self.class_list):
-            self.kernel_per_species(kde=True, chosen_id=id, radius=radius, kernel=kernel, cumulative=True)
+            gdf_chosen = dask.delayed(self.gdf_obs[self.gdf_obs.species_id==id])
+            y_hats.append(self.kernel_per_species(grid_gd=grid_gd, grid_np=grid_np, gdf_chosen=gdf_chosen, 
+                                                  kde=True, chosen_id=id, radius=radius, kernel=kernel,cumulative=True))
             
-            
+        print("Computing on cluster")
+        return y_hats   
+    
+    def kde(self, radius:float=0.5, kernel:str='gaussian'):
+        grid_gd = dask.delayed(self.grid_gd)
+        grid_np = dask.delayed(self.grid_np)
+        # y_hats = dask.compute(self.kde_dask(grid_gd, grid_np, radius,kernel))
+        y_hats = self.kde_dask(grid_gd, grid_np, radius,kernel)
+        probs = dask.compute(y_hats)
             
     def save_kde(self, filename:str):
         if (filename is None):
@@ -212,89 +281,92 @@ class Observations:
         # return grid, np.asarray(xrange), np.asarray(yrange)
 
 
+#     def kernel_per_species(self, grid_gd, grid_np, gdf_chosen, 
+#                            kde:bool=True, chosen_id:int=0, cumulative:bool=False, 
+#                            radius:float=0.5, kernel:str='gaussian'):
 
-    def kernel_per_species(self, kde:bool=True, chosen_id:int=0, cumulative:bool=False, radius:float=0.5, kernel:str='gaussian'):
+#         """
+#         Inputs:
+#         kde: whether or not to apply KDE
+#             if False: only group observations within a cell
+#             if True: group and then apply KDE
+#         chosen_id: Species ID for a single chosen species
+#         grid: grid to which these observations must conform
+#         radius: radius in degrees for the kernel function
+#         kernel: 'linerar' / 'epanechnikov' / 'gaussian' ..
+#         cumulative: keep adding to a master species list -> grid_kde
 
-        """
-        Inputs:
-        kde: whether or not to apply KDE
-            if False: only group observations within a cell
-            if True: group and then apply KDE
-        chosen_id: Species ID for a single chosen species
-        grid: grid to which these observations must conform
-        radius: radius in degrees for the kernel function
-        kernel: 'linerar' / 'epanechnikov' / 'gaussian' ..
-        cumulative: keep adding to a master species list -> grid_kde
+#         Output:
 
-        Output:
-
-        """
+#         """
         
-        self.kde_radius = radius
+#         self.kde_radius = radius
 
-        ##Group observations per cell:
-        gdf_chosen = self.gdf_obs[self.gdf_obs.species_id==chosen_id]
-        # gdf_chosen = gdf_chosen[gdf_chosen.mask == True]
+#         ##Group observations per cell:
         
-        # Remove duplicate counts
-        # With intersect, those that fall on a boundary will be allocated to all cells that share that boundary
-        # chosen_species_grid = chosen_species_grid.drop_duplicates(subset = ['speciesID']).reset_index(drop = True)
+        
+        
+#         # Remove duplicate counts
+#         # With intersect, those that fall on a boundary will be allocated to all cells that share that boundary
+#         # chosen_species_grid = chosen_species_grid.drop_duplicates(subset = ['speciesID']).reset_index(drop = True)
 
-        chosen_species_grid = gpd.sjoin(gdf_chosen, self.grid_gd, how='inner', predicate='within').drop(['index_right'], axis=1)
-        # display(chosen_species_grid)
+#         chosen_species_grid = gpd.sjoin(gdf_chosen, grid_gd, how='inner', predicate='within').drop(['index_right'], axis=1)
+#         # display(chosen_species_grid)
 
-        # Add a field with constant value of 1
-        chosen_species_grid['num_obs'] = 1.0
+#         # Add a field with constant value of 1
+#         chosen_species_grid['num_obs'] = 1.0
 
-        # Group GeoDataFrame by cell while aggregating the Count values
-        chosen_species_grid = chosen_species_grid.groupby('grid_id').agg({'num_obs':'sum'})
+#         # Group GeoDataFrame by cell while aggregating the Count values
+#         chosen_species_grid = chosen_species_grid.groupby('grid_id').agg({'num_obs':'sum'})
 
-        chosen_species_grid = self.grid_gd.merge(chosen_species_grid, on = 'grid_id', how = "right")
+#         chosen_species_grid = grid_gd.merge(chosen_species_grid, on = 'grid_id', how = "right")
  
-        if (kde and radius*2 > self.grid_resolution):
+#         if (kde and radius*2 > self.grid_resolution):
             
-            #List of grids that have observations for this species
-            chosen_grids = list(chosen_species_grid['grid_id'])
-            # print(chosen_grids, chosen_species_grid)
-            #sanity check
-            if len(chosen_grids) == 0:
-                return 
+#             #List of grids that have observations for this species
+#             chosen_grids = list(chosen_species_grid['grid_id'])
+#             # print(chosen_grids, chosen_species_grid)
+#             #sanity check
+#             if len(chosen_grids) == 0:
+#                 return 
             
-            # Create training set for KDE
-            x_train = self.grid_np[chosen_grids,:]
-            y_train = chosen_species_grid['num_obs'].to_numpy()
+#             # Create training set for KDE
+#             x_train = grid_np[chosen_grids,:]
+#             y_train = chosen_species_grid['num_obs'].to_numpy()
 
-            #Apply the KDE
-            # y_hat = np.zeros_like(self.grid_np)
-            y_hat = np.zeros_like(self.land_mask)
+#             #Apply the KDE
+#             # y_hat = np.zeros_like(self.grid_np)
+#             y_hat = np.zeros_like(self.land_mask)
 
-            tree = KDTree(x_train)
-            y_hat = tree.kernel_density(self.grid_np, h=radius, kernel=kernel)*(1*(radius**2))
+#             tree = KDTree(x_train)
+#             y_hat = tree.kernel_density(grid_np, h=radius, kernel=kernel)*(1*(radius**2))
             
-            # y_hat /= y_hat.max()
-            # print("Max y_hat = ", y_hat.max())
-            #Cap all cells at 1
-            y_hat[y_hat > self.prob_max] = self.prob_max
-            y_hat[y_hat < self.prob_min] = 0.0
+#             # y_hat /= y_hat.max()
+#             # print("Max y_hat = ", y_hat.max())
+#             #Cap all cells at 1
+#             y_hat[y_hat > self.prob_max] = self.prob_max
+#             y_hat[y_hat < self.prob_min] = 0.0
 
-            # print("Shapes: X_train={:}, y_train={:}, arr_xy={:}, y_hat={:}, sum(y_hat)={:}" .format(x_train.shape, y_train.shape, self.grid_np.shape, y_hat.shape, y_hat.sum()))
-            # y_hat_grid = y_hat.reshape(len(self.xrange), len(self.yrange))
-            # # y_hat_grid = y_hat.reshape(x_range.shape[0], y_range.shape[0])
-            # display = np.rot90(y_hat_grid)
+#             # print("Shapes: X_train={:}, y_train={:}, arr_xy={:}, y_hat={:}, sum(y_hat)={:}" .format(x_train.shape, y_train.shape, self.grid_np.shape, y_hat.shape, y_hat.sum()))
+#             # y_hat_grid = y_hat.reshape(len(self.xrange), len(self.yrange))
+#             # # y_hat_grid = y_hat.reshape(x_range.shape[0], y_range.shape[0])
+#             # display = np.rot90(y_hat_grid)
+#             return y_hat
         
         
-        #Create a new column name for this species
-        col_name = 'prob_{}'.format(chosen_id)
-        #Now convert back into a geopandas frame that has one entry for each grid cell
-        if cumulative:
-            if self.grid_kde is None: #not initialized yet
-                self.grid_kde = self.grid_gd.copy()
+        
+#         #Create a new column name for this species
+#         col_name = 'prob_{}'.format(chosen_id)
+#         #Now convert back into a geopandas frame that has one entry for each grid cell
+#         if cumulative:
+#             if self.grid_kde is None: #not initialized yet
+#                 self.grid_kde = self.grid_gd.copy()
             
-            self.grid_kde[col_name] = y_hat.tolist()
-            #no return
+#             self.grid_kde[col_name] = y_hat.tolist()
+#             #no return
             
-        else: #Only for one-time test usage
-            self.grid_kde = self.grid_gd.copy()
-            self.grid_kde[col_name] = y_hat.tolist()
+#         else: #Only for one-time test usage
+#             self.grid_kde = self.grid_gd.copy()
+#             self.grid_kde[col_name] = y_hat.tolist()
 
     
