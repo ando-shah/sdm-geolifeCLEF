@@ -88,8 +88,10 @@ class Observations:
         
     def create_mask(self, geoseries):
         print("Num entries before masking: ", len(self.grid_gd))
-        self.land_mask = self.grid_gd.within(geoseries.iloc[0]).to_numpy()
-        # self.grid_gd['mask'] = self.land_mask
+        #intersects will include cells that touch the boundary but are not inside
+        self.land_mask = self.grid_gd.intersects(geoseries.iloc[0]).to_numpy()
+        #within only considers grids that are *entirely* inside the boundary
+        # self.land_mask = self.grid_gd.within(geoseries.iloc[0]).to_numpy()
         self.grid_np = self.grid_np[self.land_mask]
         self.grid_gd = self.grid_gd[self.land_mask].reset_index(drop = True)
         
