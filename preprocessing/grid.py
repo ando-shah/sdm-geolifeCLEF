@@ -23,6 +23,7 @@ class Observations:
         self.grid_np = None #Numpy array corresponding to Geopandas frame -> one for every cell
         self.grid_kde = None #geopandas frame that has the geometry, grid_id and a column for the probability that a species_id was observered there
         self.land_mask = None
+        self.kde_radius = None
         
         self.class_list = self.gdf_obs.species_id.unique()
         self.num_classes = len(self.class_list)
@@ -39,8 +40,8 @@ class Observations:
         self.prob_max = 1.0
         
         
-        
-        print(len(self.xrange), len(self.yrange), self.grid_np.shape)
+        # print(len(self.xrange), len(self.yrange), self.grid_np.shape)
+        print(self.grid_np.shape)
         
     def __getitem__(self, idx):
         """
@@ -60,8 +61,16 @@ class Observations:
             #     print("Gridding and KDE for species ID ", id)
             self.kernel_per_species(kde=True, chosen_id=id, radius=radius, kernel=kernel, cumulative=True)
             
-    def save_kde(self, filename:str='geolifeclef_usa_kde'):
-        filename = filename + '.feather'
+    def save_kde(self, filename:str):
+        if (filename is None):
+            filename = "geolifeclef_usa_" + str(self.grid_resolution)
+            if grid_kde is not None:
+                filename = filename + "kde_" + str(self.kde_radius)            
+            
+        else:
+            filename = filename + '.feather'
+            
+            
         self.grid_kde.to_feather(filename)
         
     def load_kde(self, filename):
@@ -78,9 +87,18 @@ class Observations:
         self.grid_kde = None
         
     def create_mask(self, geoseries):
+        print("Num entries before masking: ", len(self.grid_gd))
         self.land_mask = self.grid_gd.within(geoseries.iloc[0]).to_numpy()
-        self.grid_gd['mask'] = self.land_mask
-        # self.grid_np = self.grid_np[self.land_mask]
+        # self.grid_gd['mask'] = self.land_mask
+        self.grid_np = self.grid_np[self.land_mask]
+        self.grid_gd = self.grid_gd[self.land_mask].reset_index(drop = True)
+        
+        # Create a column that assigns each grid a number
+        self.grid_gd["grid_id"] = np.arange(len(self.grid_gd))
+        
+        
+        print("Num entries after masking: ", len(self.grid_gd))      
+        assert(len(self.grid_np) == len(self.grid_gd))
 
 
     def create_grid(self, shape='square', side_length=1.0, crs='epsg:4326'):
@@ -179,9 +197,6 @@ class Observations:
         # Create grid from list of cells
         self.grid_gd = gpd.GeoDataFrame(cells_list, columns = ['geometry'], crs = crs)
 
-        # Create a column that assigns each grid a number
-        #Index is the GridID
-        self.grid_gd["grid_id"] = np.arange(len(self.grid_gd))
         
         grid_x = np.asarray([c.centroid.x for c in cells_list])
         grid_y = np.asarray([c.centroid.y for c in cells_list])
@@ -212,6 +227,8 @@ class Observations:
         Output:
 
         """
+        
+        self.kde_radius = radius
 
         ##Group observations per cell:
         gdf_chosen = self.gdf_obs[self.gdf_obs.species_id==chosen_id]
