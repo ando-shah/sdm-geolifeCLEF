@@ -35,7 +35,8 @@ def setup_dask_cluster(max=50, mem=16):
         cluster = gateway.new_cluster(cluster_options, shutdown_on_close=False)
         print("Getting client..")
         client = cluster.get_client()
-        cluster.adapt(minimum=2, maximum=max)
+        cluster.scale(max)
+        # cluster.adapt(minimum=2, maximum=max)
     
     
     print(client)
