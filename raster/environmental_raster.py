@@ -38,129 +38,7 @@ raster_names = bioclimatic_raster_names + pedologic_raster_names
 # fmt: on
 
 
-# class Raster(object):
-#     """
-#     Handles the loading and the patch extraction for a single raster
-#     """
 
-#     def __init__(
-#         self,
-#         path: str,
-#         name: str,
-#         country: str = "USA",
-#         side_len_m: int = 1000,
-#         dst_crs: str = "EPSG:32610", #california centric UTM
-#     ):
-#         """Loads a GeoTIFF file containing an environmental raster
-
-#         Parameters
-#         ----------
-#         path : string / pathlib.Path
-#             Path to the folder containing all the rasters.
-#         country : string, either "FR" or "USA"
-#             Which country to load raster from.
-#         size : integer
-#             Size in pixels (size x size) of the patch to extract around each location.
-#         nan : float or None
-#             Value to use to replace missing data in original rasters, if None, leaves default values.
-#         out_of_bounds : string, either "error", "warn" or "ignore"
-#             If "error", raises an exception if the location requested is out of bounds of the rasters. Set to "warn" to only produces a warning and to "ignore" to silently ignore it and return a patch filled with missing data.
-#         """
-#         # path = Path(path)
-#         # if not path.exists():
-#         #     raise ValueError(
-#         #         "path should be the path to a raster, given non-existant path: {}".format(
-#         #             path
-#         #         )
-#         #     )
-
-#         self.path = path 
-#         self.name = name
-#         self.raster = None
-        
-#         filename = "{:}/{:}_{:}.tif".format(self.path,self.name,country)
-    
-        
-#         with rasterio.Env():
-#             with rasterio.open(filename, "r") as dataset:
-#                 with rasterio.vrt.WarpedVRT(dataset, crs=dst_crs) as src:
-#                     # self.dataset = dataset
-#                     raster = src.read(1, masked=True, out_dtype=src.dtypes[0])
-#                     print(type(src))
-                    
-#                     self.x_min = src.bounds.left
-#                     self.y_min = src.bounds.bottom
-#                     self.x_resolution = src.res[0]
-#                     self.y_resolution = src.res[1]
-#                     self.n_rows = src.height
-#                     self.n_cols = src.width
-#                     self.crs = src.crs.data['init']
-
-#                     # loading the raster
-#                     # raster = np.squeeze(src.read())
-#                     src.close()
-
-#                     # raster = raster.astype(float)
-
-#                     # value bellow min_value are considered incorrect and therefore no_data
-#                     raster[raster < MIN_ALLOWED_VALUE] = None
-#                     raster[np.isnan(raster)] = None
-#                     #convert to 0-255, and then to uint8
-#                     raster = (255 * (raster - np.nanmin(raster)) / (np.nanmax(raster) - np.nanmin(raster))).astype(np.uint8)
-#                     self.raster = raster.filled(0)
-
-#         # print(self.raster, self.raster.shape)
-#         # setting the shape of the raster
-#         self.shape = self.raster.shape
-#         print("Completed Setup of Raster {:} Patch Size {:}x{:} in CRS = {:}".format(self.name, self.n_rows, self.n_cols, self.crs))
-
-
-
-#     def _extract_patch(self, coordinates: Coordinates) -> Patch:
-#         """Extracts the patch around the given GPS coordinates.
-#         Avoid using this method directly.
-
-#         Parameter
-#         ----------
-#         coordinates : tuple containing two floats
-#             GPS coordinates (latitude, longitude)
-
-#         Returns
-#         -------
-#         patch : 2d array of floats, [size, size], or 0d array with a single float if size == 1
-#             Extracted patch around the given coordinates.
-#         """
-#         row, col = self.dataset.index(coordinates[1], coordinates[0])
-
-#         if self.size == 1:
-#             # Environmental vector
-#             patch = self.raster[row, col]
-#         else:
-#             half_size = self.size // 2
-#             height, width = self.shape
-
-#             # FIXME: only way to trigger an exception? (slices don't)
-#             self.raster[row, col]
-
-#             raster_row_slice = slice(max(0, row - half_size), row + half_size)
-#             raster_col_slice = slice(max(0, col - half_size), col + half_size)
-
-#             patch_row_slice = slice(
-#                 max(0, half_size - row), self.size - max(0, half_size - (height - row))
-#             )
-#             patch_col_slice = slice(
-#                 max(0, half_size - col), self.size - max(0, half_size - (width - col))
-#             )
-
-#             patch = np.full(
-#                 (self.size, self.size), fill_value=self.nan, dtype=np.float32
-#             )
-#             patch[patch_row_slice, patch_col_slice] = self.raster[
-#                 raster_row_slice, raster_col_slice
-#             ]
-
-#         patch = patch[np.newaxis]
-#         return patch
  
     
 class Raster(object):
@@ -255,7 +133,7 @@ class Raster(object):
         
         dst_crs = rasterio.crs.CRS.from_string(dst_crs)
         
-        print(dst_crs, lon, lat)
+        # print(dst_crs, lon, lat)
 
         point_geom = shapely.geometry.mapping(shapely.geometry.Point(lon, lat))
 
@@ -489,8 +367,11 @@ class PatchExtractor(object):
         # for r in rasters:
         #     p = torch.from_numpy(r[coordinates]).float()
         #     p = F.resize(p, (self.side_px, self.side_px))
-        
-        return np.concatenate([r[coordinates] for r in rasters])
+        # t_out = torch.cat((t_rgb, t_nir), 0)
+        l = torch.stack([r[coordinates].squeeze() for r in rasters])
+        print (l.shape)
+        return l
+        # return np.concatenate([r[coordinates] for r in rasters])
 
     def __len__(self) -> int:
         """Number of variables/rasters loaded.
