@@ -23,6 +23,66 @@ if TYPE_CHECKING:
 
 MIN_ALLOWED_VALUE = -10000
 
+# metadata used to setup some rasters
+raster_metadata = {
+    'bio_1': {'min_val':-7.0958333015441895, 'max_val':27.608333587646484, 'mean':10.678206443786621, 'std':6.177802562713623, 'nan':-3.3999999521443642e+38,'bits':16},
+    'bio_2': {'min_val':1.0, 'max_val':22.233333587646484, 'mean':13.550623893737793, 'std':2.5262041091918945, 'nan':-3.3999999521443642e+38,'bits':16},
+    'bio_3': {'min_val':20.337738037109375, 'max_val':100.0, 'mean':37.29763412475586, 'std':9.503908157348633, 'nan':-3.3999999521443642e+38, 'bits':16},
+    'bio_4': {'min_val':0.0, 'max_val':1414.1912841796875, 'mean':873.933837890625, 'std':233.8889923095703, 'nan':-3.3999999521443642e+38, 'bits': 16},
+    'bio_5': {'min_val':0.5, 'max_val':46.20000076293945, 'mean':29.70604133605957, 'std':4.532764911651611, 'nan':-3.3999999521443642e+38, 'bits':16},
+    'bio_6': {'min_val':-27.399999618530273, 'max_val':20.700000762939453, 'mean':-7.717265605926514, 'std':8.616811752319336, 'nan':-3.3999999521443642e+38, 'bits':16},
+    'bio_7': {'min_val':1.0, 'max_val':51.69999694824219, 'mean':37.42325973510742, 'std':6.396346092224121, 'nan':-3.3999999521443642e+38, 'bits':16},
+    'bio_8': {'min_val':-12.883333206176758, 'max_val':33.883331298828125, 'mean':15.953109741210938, 'std':8.053345680236816, 'nan':-3.3999999521443642e+38, 'bits':16},
+    'bio_9': {'min_val':-18.133333206176758, 'max_val':33.66666793823242, 'mean':5.389002799987793, 'std':11.827828407287598, 'nan':-3.3999999521443642e+38, 'bits':16},
+    'bio_10': {'min_val':-1.5833332538604736, 'max_val':36.38333511352539, 'mean':21.236074447631836, 'std':4.630420684814453, 'nan':-3.3999999521443642e+38, 'bits':16},
+    'bio_11': {'min_val':-18.516666412353516, 'max_val':24.149999618530273, 'mean':-0.26365163922309875, 'std':8.591254234313965, 'nan':-3.3999999521443642e+38, 'bits':16},
+    'bio_12': {'min_val':44.0, 'max_val':3452.0, 'mean':747.0883178710938, 'std':406.6944580078125, 'nan':-3.3999999521443642e+38, 'bits':16},
+    'bio_13': {'min_val':9.0, 'max_val':618.0, 'mean':101.50006103515625, 'std':52.118675231933594, 'nan':-3.3999999521443642e+38, 'bits':16},
+    'bio_14': {'min_val':0.0, 'max_val':175.0, 'mean':31.740530014038086, 'std':26.625768661499023, 'nan':-3.3999999521443642e+38, 'bits':16},
+    'bio_15': {'min_val':5.005423069000244, 'max_val':142.28643798828125, 'mean':43.1767692565918, 'std':24.751798629760742, 'nan':-3.3999999521443642e+38, 'bits':16},
+    'bio_16': {'min_val':20.0, 'max_val':1571.0, 'mean':274.7115173339844, 'std':145.2008514404297, 'nan':-3.3999999521443642e+38, 'bits':16},
+    'bio_17': {'min_val':0.0, 'max_val':550.0, 'mean':110.51180267333984, 'std':87.41494750976562, 'nan':-3.3999999521443642e+38,'bits':16},
+    'bio_18': {'min_val':2.0, 'max_val':975.0, 'mean':221.00624084472656, 'std':115.31585693359375, 'nan':-3.3999999521443642e+38,'bits':16},
+    'bio_19': {'min_val':11.0, 'max_val':1461.0, 'mean':155.13890075683594, 'std':143.87017822265625, 'nan':-3.3999999521443642e+38,'bits':16},
+    'bdticm': {'min_val': 0., 'max_val': 112467., 'mean': 2632.716751534344, 'std':3209.621533299418,'nan': -2147483647.0, 'bits': 32},
+    'bldfie': {'min_val':93.0, 'max_val':1828.0, 'mean':1378.64892578125, 'std':137.49325561523438, 'nan':-32768.0,'bits':16},
+    'cecsol': {'min_val':0.0, 'max_val':385.0, 'mean':21.063919067382812, 'std':7.909461975097656, 'nan':-32768.0, 'bits':16},
+    'clyppt': {'min_val':0.0, 'max_val':81.0, 'mean':22.082963943481445, 'std':9.078008651733398, 'nan':-32768.0,'bits':16},
+    'orcdrc': {'min_val':0.0, 'max_val':524.0, 'mean':23.83712387084961, 'std':21.804183959960938, 'nan':-32768.0, 'bits':16},
+    'phihox': {'min_val':32.0, 'max_val':98.0, 'mean':64.52721405029297, 'std':11.172294616699219, 'nan':-32768.0, 'bits':16},
+    'sltppt': {'min_val':0.0, 'max_val':86.0, 'mean':35.99134826660156, 'std':11.597208023071289, 'nan':-32768.0, 'bits':16},
+    'sndppt': {'min_val':0.0, 'max_val':99.0, 'mean':41.921875, 'std':13.934831619262695, 'nan':-32768.0, 'bits':16}
+}
+
+# [bio_1]  'min_val':-7.0958333015441895, 'max_val':27.608333587646484, 'mean'=10.678206443786621, 'std'=6.177802562713623, 'nan'=-3.3999999521443642e+38, type=float32
+# [bio_2]  'min_val':1.0, 'max_val':22.233333587646484, 'mean'=13.550623893737793, 'std'=2.5262041091918945, 'nan'=-3.3999999521443642e+38, type=float32
+# [bio_3]  'min_val':20.337738037109375, 'max_val':100.0, 'mean'=37.29763412475586, 'std'=9.503908157348633, 'nan'=-3.3999999521443642e+38, type=float32
+# [bio_4]  'min_val':0.0, 'max_val':1414.1912841796875, 'mean'=873.933837890625, 'std'=233.8889923095703, 'nan'=-3.3999999521443642e+38, type=float32
+# [bio_5]  'min_val':0.5, 'max_val':46.20000076293945, 'mean'=29.70604133605957, 'std'=4.532764911651611, 'nan'=-3.3999999521443642e+38, type=float32
+# [bio_6]  'min_val':-27.399999618530273, 'max_val':20.700000762939453, 'mean'=-7.717265605926514, 'std'=8.616811752319336, 'nan'=-3.3999999521443642e+38, type=float32
+# [bio_7]  'min_val':1.0, 'max_val':51.69999694824219, 'mean'=37.42325973510742, 'std'=6.396346092224121, 'nan'=-3.3999999521443642e+38, type=float32
+# [bio_8]  'min_val':-12.883333206176758, 'max_val':33.883331298828125, 'mean'=15.953109741210938, 'std'=8.053345680236816, 'nan'=-3.3999999521443642e+38, type=float32
+# [bio_9]  'min_val':-18.133333206176758, 'max_val':33.66666793823242, 'mean'=5.389002799987793, 'std'=11.827828407287598, 'nan'=-3.3999999521443642e+38, type=float32
+# [bio_10]  'min_val':-1.5833332538604736, 'max_val':36.38333511352539, 'mean'=21.236074447631836, 'std'=4.630420684814453, 'nan'=-3.3999999521443642e+38, type=float32
+# [bio_11]  'min_val':-18.516666412353516, 'max_val':24.149999618530273, 'mean'=-0.26365163922309875, 'std'=8.591254234313965, 'nan'=-3.3999999521443642e+38, type=float32
+# [bio_12]  'min_val':44.0, 'max_val':3452.0, 'mean'=747.0883178710938, 'std'=406.6944580078125, 'nan'=-3.3999999521443642e+38, type=float32
+# [bio_13]  'min_val':9.0, 'max_val':618.0, 'mean'=101.50006103515625, 'std'=52.118675231933594, 'nan'=-3.3999999521443642e+38, type=float32
+# [bio_14]  'min_val':0.0, 'max_val':175.0, 'mean'=31.740530014038086, 'std'=26.625768661499023, 'nan'=-3.3999999521443642e+38, type=float32
+# [bio_15]  'min_val':5.005423069000244, 'max_val':142.28643798828125, 'mean'=43.1767692565918, 'std'=24.751798629760742, 'nan'=-3.3999999521443642e+38, type=float32
+# [bio_16]  'min_val':20.0, 'max_val':1571.0, 'mean'=274.7115173339844, 'std'=145.2008514404297, 'nan'=-3.3999999521443642e+38, type=float32
+# [bio_17]  'min_val':0.0, 'max_val':550.0, 'mean'=110.51180267333984, 'std'=87.41494750976562, 'nan'=-3.3999999521443642e+38, type=float32
+# [bio_18]  'min_val':2.0, 'max_val':975.0, 'mean'=221.00624084472656, 'std'=115.31585693359375, 'nan'=-3.3999999521443642e+38, type=float32
+# [bio_19]  'min_val':11.0, 'max_val':1461.0, 'mean'=155.13890075683594, 'std'=143.87017822265625, 'nan'=-3.3999999521443642e+38, type=float32
+# [bdticm]  'min_val':0.0, 'max_val':112467.0, 'mean'=2632.716751534344, 'std'=3209.621533299418, 'nan'=-2147483647.0, type=int32
+# [bldfie]  'min_val':93.0, 'max_val':1828.0, 'mean'=1378.64892578125, 'std'=137.49325561523438, 'nan'=-32768.0, type=int16
+# [cecsol]  'min_val':0.0, 'max_val':385.0, 'mean'=21.063919067382812, 'std'=7.909461975097656, 'nan'=-32768.0, type=int16
+# [clyppt]  'min_val':0.0, 'max_val':81.0, 'mean'=22.082963943481445, 'std'=9.078008651733398, 'nan'=-32768.0, type=int16
+# [orcdrc]  'min_val':0.0, 'max_val':524.0, 'mean'=23.83712387084961, 'std'=21.804183959960938, 'nan'=-32768.0, type=int16
+# [phihox]  'min_val':32.0, 'max_val':98.0, 'mean'=64.52721405029297, 'std'=11.172294616699219, 'nan'=-32768.0, type=int16
+# [sltppt]  'min_val':0.0, 'max_val':86.0, 'mean'=35.99134826660156, 'std'=11.597208023071289, 'nan'=-32768.0, type=int16
+# [sndppt]  'min_val':0.0, 'max_val':99.0, 'mean'=41.921875, 'std'=13.934831619262695, 'nan'=-32768.0, type=int16
+
+
 # fmt: off
 bioclimatic_raster_names = [
     "bio_1", "bio_2", "bio_3", "bio_4", "bio_5", "bio_6", "bio_7", "bio_8", "bio_9",
@@ -38,8 +98,6 @@ raster_names = bioclimatic_raster_names + pedologic_raster_names
 # fmt: on
 
 
-
- 
     
 class Raster(object):
     """
@@ -54,6 +112,8 @@ class Raster(object):
         side_len_m: int = 1000,
         side_px : int = 64,
         dst_crs: str = "EPSG:32610", #california centric UTM
+        norm:str = "None",
+        out_dtype:str = "float",
         display: bool = False
     ):
         """Loads a GeoTIFF file containing an environmental raster
@@ -66,14 +126,33 @@ class Raster(object):
             Which country to load raster from.
         display : bool
             Will the raster be displayed
+        norm : str = {"none", "min-max", "std"}
+            if none: simply divide the value by the 2^('bits' - 8) in it's metadata,e.g. for 16 bit-> divide by 256, to get it to within 256 bits
+                        might have to add + 128 to remove all negative values and then convert to uint8
+            if min-max: convert to min-max normalization and then to between 0 and 255 ->uint8
+            if std: convert
+        out_dtype : str = {"uint8", "uint16", "float"}
+            float -> implies that the values are scaled b/w 0 and 1
+            uint8 and uint16 -> values are b/w 0 and 255 or 0 and 32,767
         """
         
         self.path = path 
         self.name = name
         self.raster = None
         self.dst_crs = dst_crs
-        self.side_length = side_len_m
+        self.side_length_deg = side_len_m / (111110.)
         self.side_px = side_px
+        self.norm = norm
+        
+        #save all the metadata
+        self.min, self.range = raster_metadata[self.name]['min_val'], raster_metadata[self.name]['max_val'] - raster_metadata[self.name]['min_val']
+        self.mean, self.std = raster_metadata[self.name]['mean'], raster_metadata[self.name]['std']
+        self.div = 2**(int(raster_metadata[self.name]['bits']) - 8)
+        
+        self.out_dtype = out_dtype
+        
+        #Buffer to resolve warping issues during reprojections, in percentage
+        self.crop_buf_perc = 0.1 
         
         filename = "{:}/{:}_{:}.tif".format(self.path,self.name,country)
         print("Opening Raster file for ", self.name)
@@ -81,25 +160,15 @@ class Raster(object):
     
         with rasterio.Env():
             with rasterio.open(filename, "r") as f:
+                self.raster = rioxarray.open_rasterio(f, masked=True)
+                #Dont do this now, then it's lazy loaded
+                # self.raster = self.raster.rio.reproject(self.dst_crs)
 
-                self.raster = rioxarray.open_rasterio(f, masked=True)#.rio.clip([mask_geom], from_disk=True)
-                self.raster = self.raster.rio.reproject(self.dst_crs)
-                
-        # self.raster.data[self.raster.data < MIN_ALLOWED_VALUE] = None
-        # self.raster.data[np.isnan(self.raster.data)] = None
-        #convert to 0-255, and then to uint8
-        self.raster.data = (255 * (self.raster.data - np.nanmin(self.raster.data)) / (np.nanmax(self.raster.data) - np.nanmin(self.raster.data)))#.astype(np.uint8) -> dont convert to int here otherwise rio.clip will not work
-        # raster.data = raster.data.filled(0) -> might be useful for Mask values
-
+        # print("Completed Setup of Raster {:} in CRS = {:}".format(self.name, self.crs, self.raster.data.dtype))
+        print("Completed Setup of Raster {:} ".format(self.name))
         
-        self.crs = self.raster.rio.crs
-
-        # setting the shape of the raster
-        self.shape = self.raster.shape
-        print("Completed Setup of Raster {:} in CRS = {:} and dtype {:}".format(self.name, self.crs, self.raster.data.dtype))
-        
-        if(display):
-            self.raster.sel(band=1).plot.imshow()
+#         if(display):
+#             self.raster.sel(band=1).plot.imshow()
         
         
     #Rasterio implementation with the correct behavior
@@ -109,6 +178,8 @@ class Raster(object):
     # 4. Get mask in 32610
     # 5. Clip raster with mask
     # 6. Transform with center crop and resize
+    
+
     
     def _extract_patch(self, coordinates: Coordinates):
         """Extracts the patch around the given GPS coordinates.
@@ -133,32 +204,49 @@ class Raster(object):
         
         dst_crs = rasterio.crs.CRS.from_string(dst_crs)
         
-        # print(dst_crs, lon, lat)
+        print(dst_crs, lon, lat)
 
         point_geom = shapely.geometry.mapping(shapely.geometry.Point(lon, lat))
 
         # Grid points are in 4326 -> move to 32610
-        point_geom = rasterio.warp.transform_geom("epsg:4326", dst_crs, point_geom)
-        # point_geom = rasterio.warp.transform_geom(self.crs, dst_crs, point_geom)
-
-        #Convert the point to a shape
+        # point_geom = rasterio.warp.transform_geom("epsg:4326", dst_crs, point_geom)
+        
+        #Convert the point to a shape -> KEEP IN 4326
         point_shape = shapely.geometry.shape(point_geom)
-        #Create a square out of it with side_length = buffer*2
-        mask_shape = point_shape.buffer(self.side_length/2).envelope
+        #Create a square out of it with side_length = buffer*2 + some buffer
+        #Buffer is needed because when it gets reprojected, we will lose some of edges
+        mask_shape = point_shape.buffer(self.side_length_deg/2 * (1+self.crop_buf_perc)).envelope
         mask_geom = shapely.geometry.mapping(mask_shape)
         
-        # print(mask_geom)
 
         try:
-
-            aoi = self.raster.rio.clip([mask_geom], from_disk=True)
+            aoi = self.raster.rio.clip([mask_geom], from_disk=True).rio.reproject(dst_crs)
+            
+            #rescale to between min and max -> this should be precomputed and stored in raster_metadata
+            # aoi.data = (aoi.data - self.min) / self.range
+            aoi.values = (aoi.values - self.min) / self.range
+            
+            if(self.out_dtype == "uint8"):
+                aoi.data *= 255
+                aoi.values.astype(np.uint8)
+                
+            elif (self.out_dtype == "uint16"):
+                aoi.data *= 65535
+                aoi.values.astype(np.uint8)
+                
             
             #TODO Convert to EA projection here:
             #Convert to uint8, since the values were already scaled to between 0 and 255 before
-            t = torch.from_numpy(aoi.values.astype(np.uint8))
+            t = torch.from_numpy(aoi.values)
+            
+            #set nans to zero
+            t[torch.isnan(t)] = 0
+            
+            smallest_side = min(t.shape[1:3]) #for 3d tensor
+            crop_size = int(smallest_side * (1-self.crop_buf_perc))
 
-            postprocess = T.Compose ([T.CenterCrop((t.shape[1])),
-                                     T.Resize(self.side_px)])
+            postprocess = T.Compose ([T.CenterCrop((crop_size)),
+                                     T.Resize((self.side_px, self.side_px))])
 
             t = postprocess(t)
             #otherwise images dont display properly
@@ -199,28 +287,6 @@ class Raster(object):
         """
         
         return self._extract_patch(coordinates)
-        
-#         try:
-#             return self._extract_patch(coordinates)
-#         except IndexError as e:
-#             if self.out_of_bounds == "error":
-#                 raise e
-#             else:
-#                 if self.out_of_bounds == "warn":
-#                     warnings.warn(
-#                         "GPS coordinates ({}, {}) out of bounds".format(*coordinates)
-#                     )
-
-#                 if self.size == 1:
-#                     patch = np.array([self.nan], dtype=np.float32)
-#                 else:
-#                     patch = np.full(
-#                         (1, self.size, self.size), fill_value=self.nan, dtype=np.float32
-#                     )
-
-#                 return patch
-
-        # print ("Should not be here : Raster.__getitem__()")
 
     def __repr__(self) -> str:
         return str(self)
@@ -234,7 +300,7 @@ class PatchExtractor(object):
     Handles the loading and extraction of an environmental tensor from multiple rasters given GPS coordinates.
     """
 
-    def __init__(self, root_path: str, side_len_m: int = 1000, side_px:int = 64):
+    def __init__(self, root_path: str, side_len_m: int = 1000, side_px:int = 64, out_dtype:str="float"):
         """Constructor
 
         Parameters
@@ -245,20 +311,16 @@ class PatchExtractor(object):
             Size in meters in the real world of patch to be extracted
         side_px : integer
             Size in pixels (size x size) of final patches to be sent back.
+        out_dtype : str = {"uint8", "uint16", "float"}
+            float -> implies that the values are scaled b/w 0 and 1
+            uint8 and uint16 -> values are b/w 0 and 255 or 0 and 32,767
         """
         self.root_path = root_path
-        # self.root_path = Path(root_path)
-        # if not self.root_path.exists():
-        #     raise ValueError(
-        #         "root_path should be the directory containing the rasters, given a non-existant path: {}".format(
-        #             root_path
-        #         )
-        #     )
-      
 
         self.side_len = side_len_m
         self.side_px = side_px
         self.rasters_us: list[Raster] = []
+        self.out_dtype = out_dtype
 
     def add_all_rasters(self, **kwargs: Any) -> None:
         """Add all variables (rasters) available
@@ -291,7 +353,7 @@ class PatchExtractor(object):
             Updates the default arguments passed to Raster (nan, out_of_bounds, etc.)
         """
         for raster_name in pedologic_raster_names:
-            self.append(raster_name, **kwargs)
+            self.append(name=raster_name, **kwargs)
 
     def append(self, raster_name: str, **kwargs: Any) -> None:
         """Loads and appends a single raster to the rasters already loaded.
@@ -305,11 +367,16 @@ class PatchExtractor(object):
         kwargs : dict
             Updates the default arguments passed to Raster (nan, out_of_bounds, etc.)
         """
-        r_us = Raster(self.root_path + raster_name, raster_name, "USA", side_len_m=self.side_len, side_px=self.side_px, **kwargs)
+        r_us = Raster(self.root_path + raster_name, raster_name, "USA", side_len_m=self.side_len, side_px=self.side_px, out_dtype=self.out_dtype, **kwargs)
         # r_fr = Raster(self.root_path / raster_name, "FR", size=self.size, **kwargs)
 
         self.rasters_us.append(r_us)
         # self.rasters_fr.append(r_fr)
+        
+    def _dump_metadata(self):
+        
+        for r in self.rasters_us:
+            print("[{:}]  'min_val':{}, 'max_val':{}, 'mean':{}, 'std':{}, 'nan':{}, type:{}".format(r.name, np.nanmin(r.raster.values), np.nanmax(r.raster.values), np.nanmean(r.raster.values), np.nanstd(r.raster.values), r.raster.encoding['_FillValue'], r.raster.encoding['dtype']))
 
     def clean(self) -> None:
         """Remove all rasters from the extractor."""
@@ -363,15 +430,8 @@ class PatchExtractor(object):
         """
         rasters = self.rasters_us
         
-        ## Convert each raster to the required output size
-        # for r in rasters:
-        #     p = torch.from_numpy(r[coordinates]).float()
-        #     p = F.resize(p, (self.side_px, self.side_px))
-        # t_out = torch.cat((t_rgb, t_nir), 0)
-        l = torch.stack([r[coordinates].squeeze() for r in rasters])
-        print (l.shape)
-        return l
-        # return np.concatenate([r[coordinates] for r in rasters])
+        return torch.stack([r[coordinates].squeeze() for r in rasters])
+
 
     def __len__(self) -> int:
         """Number of variables/rasters loaded.
