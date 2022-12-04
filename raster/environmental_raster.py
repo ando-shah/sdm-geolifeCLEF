@@ -14,6 +14,8 @@ import torchvision.transforms as T
 import rioxarray
 import shapely.geometry
 
+from rasterio.enums import Resampling
+
 if TYPE_CHECKING:
     import numpy.typing as npt
 
@@ -110,11 +112,8 @@ class Raster(object):
         name: str,
         country: str = "USA",
         side_len_m: int = 1000,
-        side_px : int = 64,
-        dst_crs: str = "EPSG:32610", #california centric UTM
         norm:str = "None",
-        out_dtype:str = "float",
-        display: bool = False
+        out_dtype:str = "float"
     ):
         """Loads a GeoTIFF file containing an environmental raster
 
@@ -133,16 +132,18 @@ class Raster(object):
             if std: convert
         out_dtype : str = {"uint8", "uint16", "float"}
             float -> implies that the values are scaled b/w 0 and 1
-            uint8 and uint16 -> values are b/w 0 and 255 or 0 and 32,767
+            uint8 and int16 -> values are b/w 0 and 255 or -32767 and 32,767
         """
         
         self.path = path 
         self.name = name
-        self.raster = None
-        self.dst_crs = dst_crs
         self.side_length_deg = side_len_m / (111110.)
-        self.side_px = side_px
+        
+        self.raster = None
         self.norm = norm
+        
+        self.crop_buf_perc = 0.15 #-> 15% extra crop for warping issues
+        
         
         #save all the metadata
         self.min, self.range = raster_metadata[self.name]['min_val'], raster_metadata[self.name]['max_val'] - raster_metadata[self.name]['min_val']
@@ -151,8 +152,6 @@ class Raster(object):
         
         self.out_dtype = out_dtype
         
-        #Buffer to resolve warping issues during reprojections, in percentage
-        self.crop_buf_perc = 0.1 
         
         filename = "{:}/{:}_{:}.tif".format(self.path,self.name,country)
         print("Opening Raster file for ", self.name)
@@ -166,92 +165,63 @@ class Raster(object):
 
         # print("Completed Setup of Raster {:} in CRS = {:}".format(self.name, self.crs, self.raster.data.dtype))
         print("Completed Setup of Raster {:} ".format(self.name))
-        
-#         if(display):
-#             self.raster.sel(band=1).plot.imshow()
-        
-        
-    #Rasterio implementation with the correct behavior
-    # 1. Read raster in rasterio (in 4326)
-    # 2. Convert raster to 32610
-    # 3. Get coordinate, convert to 32610
-    # 4. Get mask in 32610
-    # 5. Clip raster with mask
-    # 6. Transform with center crop and resize
-    
 
     
-    def _extract_patch(self, coordinates: Coordinates):
+    def _extract_patch(self, coordinates):
         """Extracts the patch around the given GPS coordinates.
         Avoid using this method directly.
 
         Parameter
         ----------
-        coordinates : tuple containing two floats and a string
+        aoi : tuple containing two floats and a reference to a SI raster object
             GPS coordinates (longitude,latitude)
-            ((lat,lon),crs)
-
+            ((lon, lat),aoi)
         Returns
         -------
-        patch : 2d array of floats, [size, size], or 0d array with a single float if size == 1
-            Extracted patch around the given coordinates.
+        patch : tensor of data of the same size as the si_aoi.
         """
         
-        lon, lat, dst_crs = coordinates[0][0], coordinates[0][1], coordinates[1]
-        
-        if dst_crs == 'None':
-            dst_crs = self.dst_crs
-        
-        dst_crs = rasterio.crs.CRS.from_string(dst_crs)
-        
-        print(dst_crs, lon, lat)
-
+        lon, lat, aoi_si = coordinates[0][0], coordinates[0][1], coordinates[1]
         point_geom = shapely.geometry.mapping(shapely.geometry.Point(lon, lat))
 
-        # Grid points are in 4326 -> move to 32610
-        # point_geom = rasterio.warp.transform_geom("epsg:4326", dst_crs, point_geom)
-        
         #Convert the point to a shape -> KEEP IN 4326
         point_shape = shapely.geometry.shape(point_geom)
         #Create a square out of it with side_length = buffer*2 + some buffer
         #Buffer is needed because when it gets reprojected, we will lose some of edges
         mask_shape = point_shape.buffer(self.side_length_deg/2 * (1+self.crop_buf_perc)).envelope
         mask_geom = shapely.geometry.mapping(mask_shape)
-        
 
         try:
-            aoi = self.raster.rio.clip([mask_geom], from_disk=True).rio.reproject(dst_crs)
+            #pre-clip
+            aoi = self.raster.rio.clip([mask_geom], from_disk=True).rio.reproject_match(aoi_si,resampling=Resampling.bilinear)
+            # aoi = self.raster.rio.reproject_match(aoi_si)            
+            # print(aoi.values.shape)
             
             #rescale to between min and max -> this should be precomputed and stored in raster_metadata
-            # aoi.data = (aoi.data - self.min) / self.range
             aoi.values = (aoi.values - self.min) / self.range
             
             if(self.out_dtype == "uint8"):
                 aoi.data *= 255
-                aoi.values.astype(np.uint8)
+                t = torch.from_numpy(aoi.values.astype(np.uint8))
+                # aoi.values.astype(np.uint8)
                 
-            elif (self.out_dtype == "uint16"):
-                aoi.data *= 65535
-                aoi.values.astype(np.uint8)
+            elif (self.out_dtype == "int16"):
+                aoi.data *= (65536/2 - 1) 
+                t = torch.from_numpy(aoi.values.astype(np.int16))
+                # aoi.values.astype(np.uint16)
+                                     
                 
             
             #TODO Convert to EA projection here:
             #Convert to uint8, since the values were already scaled to between 0 and 255 before
+            # t_env = torch.from_numpy(cropped_env_raster.values.astype(np.uint8))
             t = torch.from_numpy(aoi.values)
-            
+            # t_env = torch.from_numpy(cropped_env_raster.values.astype(np.uint8))
+            #crop to shorter side
+            t = T.CenterCrop(size=(t.shape[1]))(t)
             #set nans to zero
             t[torch.isnan(t)] = 0
             
-            smallest_side = min(t.shape[1:3]) #for 3d tensor
-            crop_size = int(smallest_side * (1-self.crop_buf_perc))
-
-            postprocess = T.Compose ([T.CenterCrop((crop_size)),
-                                     T.Resize((self.side_px, self.side_px))])
-
-            t = postprocess(t)
-            #otherwise images dont display properly
-            #but uint8 conversion has already taken care of this downresolution
-            # t /= 255 
             print(t.shape, type(t))
 
         except ValueError as e:
@@ -300,7 +270,7 @@ class PatchExtractor(object):
     Handles the loading and extraction of an environmental tensor from multiple rasters given GPS coordinates.
     """
 
-    def __init__(self, root_path: str, side_len_m: int = 1000, side_px:int = 64, out_dtype:str="float"):
+    def __init__(self, root_path: str, side_len_m: int = 1000, out_dtype:str="float"):
         """Constructor
 
         Parameters
@@ -309,8 +279,6 @@ class PatchExtractor(object):
             Path to the folder containing all the rasters.
         side_len_m : integer
             Size in meters in the real world of patch to be extracted
-        side_px : integer
-            Size in pixels (size x size) of final patches to be sent back.
         out_dtype : str = {"uint8", "uint16", "float"}
             float -> implies that the values are scaled b/w 0 and 1
             uint8 and uint16 -> values are b/w 0 and 255 or 0 and 32,767
@@ -318,7 +286,6 @@ class PatchExtractor(object):
         self.root_path = root_path
 
         self.side_len = side_len_m
-        self.side_px = side_px
         self.rasters_us: list[Raster] = []
         self.out_dtype = out_dtype
 
@@ -353,7 +320,7 @@ class PatchExtractor(object):
             Updates the default arguments passed to Raster (nan, out_of_bounds, etc.)
         """
         for raster_name in pedologic_raster_names:
-            self.append(name=raster_name, **kwargs)
+            self.append(raster_name, **kwargs)
 
     def append(self, raster_name: str, **kwargs: Any) -> None:
         """Loads and appends a single raster to the rasters already loaded.
@@ -367,7 +334,7 @@ class PatchExtractor(object):
         kwargs : dict
             Updates the default arguments passed to Raster (nan, out_of_bounds, etc.)
         """
-        r_us = Raster(self.root_path + raster_name, raster_name, "USA", side_len_m=self.side_len, side_px=self.side_px, out_dtype=self.out_dtype, **kwargs)
+        r_us = Raster(self.root_path + raster_name, raster_name, "USA", side_len_m=self.side_len, out_dtype=self.out_dtype, **kwargs)
         # r_fr = Raster(self.root_path / raster_name, "FR", size=self.size, **kwargs)
 
         self.rasters_us.append(r_us)
@@ -414,19 +381,18 @@ class PatchExtractor(object):
 
         return result
 
-    def __getitem__(self, coordinates) -> npt.NDArray[np.float32]:
+    def __getitem__(self, coordinates):
         """Extracts the patches around the given GPS coordinates for all the previously loaded rasters.
 
         Parameters
         ----------
-        coordinates : tuple containing two floats and a string for destination crs
+        coordinates : tuple containing two floats and a raster object reference for destination SI image
             GPS coordinates (longitude,latitude)
             dst_crs : string
-            ((lon, lat),crs)
+            ((lon, lat), aoi_si)
         Returns
         -------
-        patch : 3d array of floats, [n_rasters, size, size], or 1d array of floats, [n_rasters,], if size == 1
-            Extracted patches around the given coordinates.
+        patch : 3d array of floats, [n_rasters, size, size], tensors
         """
         rasters = self.rasters_us
         
