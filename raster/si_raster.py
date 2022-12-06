@@ -9,11 +9,12 @@ import torchvision.transforms as T
 import rasterio
 import rasterio.warp
 import rasterio.mask
+from rasterio.enums import Resampling
+
 import shapely.geometry
 import geopandas as gpd
 import dask_geopandas
-# from dask.distributed import Client
-# from dask_gateway import GatewayCluster
+
 
 import pystac_client
 import planetary_computer as pc
@@ -58,6 +59,12 @@ class SIPatchExtractor(object):
 
     def __repr__(self) -> str:
         return str(self)
+    
+    def getlonlat(self, idx):
+        """returns a tuple consisting of the longitude and latitude for that given grid_id or idx
+        """
+        
+        return (self.data.lon[idx], self.data.lat[idx])
 
 
     def __getitem__(self, idx:int=-1): #, coordinates: Coordinates) -> npt.NDArray[np.float32]:
@@ -101,8 +108,12 @@ class SIPatchExtractor(object):
             #RGB
             
             with rasterio.Env():
+                aspect_ratio, new_height, new_width = -1., -1., -1.
+                
                 with rasterio.open(fn_RGB, "r") as f:
                     # Grid points are in 4326 -> move to 32610
+                    
+                    
                     point_geom = rasterio.warp.transform_geom("epsg:4326", f.crs.to_string(), point_geom)
                     
                     #Convert the point to a shape
@@ -112,22 +123,30 @@ class SIPatchExtractor(object):
                     mask_geom = shapely.geometry.mapping(mask_shape)
 
                     try:
+                        
+                        
+                        aoi_si = rioxarray.open_rasterio(f).rio.clip([mask_geom], from_disk=True)
+                        
+                        aspect_ratio = aoi_si.shape[2]/aoi_si.shape[1]
+                        new_height = self.side_px
+                        new_width = aspect_ratio * new_height
+                        print(new_height, new_width)
 
-                        image_rgb = rioxarray.open_rasterio(f).rio.clip([mask_geom], from_disk=True)
-                        #TODO Convert to EA projection here:
+                        #downsample raster                                    # (height, width)
+                        aoi_si = aoi_si.rio.reproject(aoi_si.rio.crs, \
+                                                      shape=(int(new_height), int(new_width)), resampling=Resampling.bilinear)
+                        print(aoi_si.shape)
+                        
+                        t_rgb = torch.from_numpy(aoi_si.values.astype(np.uint8))
+                        postprocess = T.Compose ([T.CenterCrop((t_rgb.shape[1])),])
+                                                 # T.Resize(self.side_px)]) TODO Put in normalize
 
-                        t = torch.from_numpy(image_rgb.values.astype(np.uint8))
-
-                        postprocess = T.Compose ([T.CenterCrop((t.shape[1])),
-                                                 T.Resize(self.side_px)])
-
-                        t_rgb = postprocess(t)
+                        t_rgb = postprocess(t_rgb)
 
 
                     except ValueError as e:
                         if "Input shapes do not overlap raster." in str(e):
                             print("Couldnt open RGB URL or requested grid doesnt overlap")
-                            return None
             
             
             #NIR
@@ -136,13 +155,15 @@ class SIPatchExtractor(object):
 
                     try:
 
-                        image_nir = rioxarray.open_rasterio(f).rio.clip([mask_geom], from_disk=True)
-                        t = torch.from_numpy(image_nir.values.astype(np.uint8)) #divides by 255 effectively
-
-                        postprocess = T.Compose ([T.CenterCrop((t.shape[1])),
-                                                 T.Resize(self.side_px)])
-
-                        t_nir = postprocess(t)
+                        aoi_si_nir = rioxarray.open_rasterio(f).rio.clip([mask_geom], from_disk=True)
+                        aoi_si_nir = aoi_si_nir.rio.reproject(aoi_si_nir.rio.crs, \
+                                                      shape=(int(new_height), int(new_width)), resampling=Resampling.bilinear)
+                        print(aoi_si_nir.shape)
+                        
+                        t_nir = torch.from_numpy(aoi_si_nir.values.astype(np.uint8))
+                        postprocess = T.Compose ([T.CenterCrop((t_nir.shape[1])),])
+                        
+                        t_nir = postprocess(t_nir)
                         #otherwise images dont display properly
                         #but uint8 conversion has already taken care of this downresolution
                         # t /= 255 
@@ -151,7 +172,6 @@ class SIPatchExtractor(object):
                     except ValueError as e:
                         if "Input shapes do not overlap raster." in str(e):
                             print("Couldnt open NIR URL or requested grid doesnt overlap")
-                            return None
             
             
                         
@@ -164,7 +184,8 @@ class SIPatchExtractor(object):
             # print(t_out.shape)
             # assert(out_image.shape )
             
-            return t_out
+            return (t_out, aoi_si, self.getlonlat(idx))
+        
 
     def __len__(self) -> int:
         """Number of variables/rasters loaded.
@@ -191,7 +212,7 @@ class SIPatchExtractor(object):
         PIL Image
         """
 
-        tensor = self[idx]
+        tensor, _ = self[idx]
         
         transform = T.ToPILImage()
         image_RGB = transform(tensor[0:3,:,:])
