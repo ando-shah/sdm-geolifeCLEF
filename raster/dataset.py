@@ -8,62 +8,80 @@ from si_raster import SIPatchExtractor
 
 import numpy as np
 import pandas as pd
+import geopandas as gpd
 
+import torch
 from torch.utils.data import Dataset
 
-from .common import load_patch
-
-# if TYPE_CHECKING:
-#     import numpy.typing as npt
-#     from .common import Patches
-#     from .environmental_raster import PatchExtractor
-
-#     Targets = npt.NDArray[np.int64]
-
-
-class GeoLifeCLEF2022Dataset(Dataset):
+class Dataset(Dataset):
     """Pytorch dataset handler for GeoLifeCLEF 2022 dataset.
 
     Parameters
     ----------
-    root : string or pathlib.Path
-        Root directory of dataset.
+    raster_root : string or pathlib.Path
+        Root directory of raster datasets -> pass in an S3 dataset or local
     subset : string, either "train", "val", "train+val" or "test"
         Use the given subset ("train+val" is the complete training data).
-    region : string, either "both", "fr" or "us"
-        Load the observations of both France and US or only a single region.
-    patch_data : string or list of string
-        Specifies what type of patch data to load, possible values: 'all', 'rgb', 'near_ir', 'landcover' or 'altitude'.
+    observations : GeoDataFrame
+        for train mode: list of grids with observations with a KDE applied typically -> {geometry, grid_id, prob_*}
+        fot val/train mode: list of observations -> {geometry, observation_id}
+    centroids : GeoDataFrame 
+        list of centroids for each grid cell in the train dataset: has a lon, lat and url fields
+        for train_mode : centroid of grids
+        for test/val : location of observations
+        index of observations and centroids need to match 1:1
+    side_len_m : int
+        length in meters of each side of extracted raster; both SI and env
+    side_px : int
+        size in pixels of extracted patch
+    si_patch_data : string or list of string
+        Specifies what type of patch data to load, possible values: 'all', 'rgb', 'nir'
     use_rasters : boolean (optional)
         If True, extracts patches from environmental rasters.
-    patch_extractor : PatchExtractor object (optional)
-        Patch extractor to use if rasters are used.
-    transform : callable (optional)
-        A function/transform that takes a list of arrays and returns a transformed version.
+    si_patch_extractor : SIPatchExtractor object 
+        Patch extractor for satellite images (sentinel).
+    env_patch_extractor : EnvPatchExtractor object 
+        Patch extractor for environmental covariate rasters.
+    si_transform, env_transform : callable (optional)
+        A function/transform that takes a tensor and returns a transformed version.
     target_transform : callable (optional)
         A function/transform that takes in the target and transforms it.
     """
 
     def __init__(
         self,
-        root: Union[str, Path],
+        raster_root: Optional[str],
         subset: str,
-        *,
+        centroids: gpd.GeoDataFrame,
+        observations: gpd.GeoDataFrame,
+        side_len_m: int=10000,
+        side_px: int=64,
         region: str = "us",
-        patch_data: str = "all",
+        si_patch_data: str = "all",
         use_rasters: bool = True,
-        patch_extractor: Optional[PatchExtractor] = None,
-        transform: Optional[Callable] = None,
+        si_patch_extractor: SIPatchExtractor = None,
+        env_patch_extractor: EnvPatchExtractor = None,
+        si_transform: Optional[Callable] = None,
+        env_transform: Optional[Callable] = None,
         target_transform: Optional[Callable] = None,
     ):
-        self.root = Path(root)
+        self.raster_root = raster_root
         self.subset = subset
-        self.region = region
-        self.patch_data = patch_data
-        self.transform = transform
+        self.si_patch_data = si_patch_data
+        self.si_transform = si_transform
+        self.env_transform = env_transform
         self.target_transform = target_transform
+        
+        self.centroids = centroids
+        self.observations = observations
+        
+        self.si_patch_extractor = si_patch_extractor
+        self.env_patch_extractor = env_patch_extractor
+        
+        self.side_len_m = side_len_m
+        self.side_px = side_px
 
-        possible_subsets = ["train", "val", "train+val", "test"]
+        possible_subsets = ["train", "val",  "test"]
         if subset not in possible_subsets:
             raise ValueError(
                 "Possible values for 'subset' are: {} (given {})".format(
@@ -71,31 +89,32 @@ class GeoLifeCLEF2022Dataset(Dataset):
                 )
             )
 
-        if subset == "test":
-            subset_file_suffix = "test"
-            self.training_data = False
-        else:
-            subset_file_suffix = "train"
+        if self.subset == "train":
+            # subset_file_suffix = "test_val"
             self.training_data = True
+        else:
+            # subset_file_suffix = "train"
+            self.training_data = False
 
-
-
-        if region == "both":
-            df = pd.concat((df_fr, df_us))
-        elif region == "fr":
-            df = df_fr
-        elif region == "us":
-            df = df_us
-
-        if self.training_data and subset != "train+val":
-            ind = df.index[df["subset"] == subset]
-            df = df.loc[ind]
-
-        self.grid_ids = df.index
-        self.coordinates = df[["latitude", "longitude"]].values
-
+        #Setup Patch Extractors
+        if (self.si_patch_extractor == None):
+            print("Setting up SI Patch Extractor..")
+            self.si_patch_extractor = SIPatchExtractor(self.centroids, side_length_m=self.side_len_m, side_px=self.side_px)
+        
+        if (self.env_patch_extractor == None):
+            print("Setting up env raster extractor..")
+            self.env_patch_extractor = EnvPatchExtractor(self.raster_root, side_len_m=self.side_len_m, out_dtype="uint8", norm="std")
+            # self.env_patch_extractor.append("bio_1")
+            # self.env_patch_extractor.add_all_pedologic_rasters()
+            self.env_patch_extractor.add_all_rasters()
+            # self.env_patch_extractor.add_all_bioclimatic_rasters()
+            
         if self.training_data:
-            self.targets = df["species_id"].values
+            # self.grid_ids = self.centroids.index
+            # self.coordinates = self.centroids[["lon", "lat"]].values
+            #convert to numpy (get rid of geometry and grid_id columns; grid_id is same as index), requantize to 0 to 1.
+            self.targets = self.observations.drop(['geometry'], axis=1).set_index('grid_id', drop=True).to_numpy()/255.
+
         else:
             self.targets = None
 
@@ -103,34 +122,26 @@ class GeoLifeCLEF2022Dataset(Dataset):
         # self.one_hot_size = 34
         # self.one_hot = np.eye(self.one_hot_size)
 
-        self.patch_extractor = None
-        if use_rasters:
-            if patch_extractor is None:
-                from .environmental_raster import PatchExtractor
-
-                patch_extractor = PatchExtractor(self.root / "rasters", size=256)
-                patch_extractor.add_all_rasters()
-
-            self.patch_extractor = patch_extractor
 
     def __len__(self) -> int:
-        return len(self.observation_ids)
+        return len(self.observations)
 
     def __getitem__(
         self,
         index: int,
-    ) -> Union[
-        Union[Patches, list[Patches]], tuple[Union[Patches, list[Patches]], Targets]]:
+    ) :
         
+        #Extract Si patch first
+        print("Extracting SI patches...")
+        t_si, aoi_si, coods = self.si_patch_extractor[index]
+        print("Extracting env patches...")
+        t_env = self.env_patch_extractor[(coods, aoi_si)]
         
-        latitude = self.coordinates[index][0]
-        longitude = self.coordinates[index][1]
-        observation_id = self.observation_ids[index]
+        # latitude = self.coordinates[index][0]
+        # longitude = self.coordinates[index][1]
+        # observation_id = self.observation_ids[index]
 
-        patches: Union[Patches, list[Patches]] = load_patch(
-            observation_id, self.root, data=self.patch_data
-        )
-
+       
         # FIXME: add back landcover one hot encoding?
         # lc = patches[3]
         # lc_one_hot = np.zeros((self.one_hot_size,lc.shape[0], lc.shape[1]))
@@ -139,16 +150,24 @@ class GeoLifeCLEF2022Dataset(Dataset):
         # lc_one_hot[lc, row_index, col_index] = 1
 
         # Extracting patch from rasters
-        if self.patch_extractor is not None:
-            environmental_patches = self.patch_extractor[(latitude, longitude)]
-            patches = patches + [environmental_patches]
+#         if self.patch_extractor is not None:
+#             environmental_patches = self.patch_extractor[(latitude, longitude)]
+#             patches = patches + [environmental_patches]
 
-        # Concatenate all patches into a single tensor
-        if len(patches) == 1:
-            patches = patches[0]
+#         # Concatenate all patches into a single tensor
+#         if len(patches) == 1:
+#             patches = patches[0]
 
-        if self.transform:
-            patches = self.transform(patches)
+        if self.si_transform:
+            t_si = self.si_transform(t_si)
+            
+        if self.si_transform:
+            t_env = self.env_transform(t_env)
+            
+        #combine the patch tensors
+        patch =  torch.cat((t_si, t_env), 0)
+        
+        print(patch.shape)
 
         if self.training_data:
             target = self.targets[index]
@@ -156,6 +175,6 @@ class GeoLifeCLEF2022Dataset(Dataset):
             if self.target_transform:
                 target = self.target_transform(target)
 
-            return patches, target
+            return patch, target
         else:
-            return patches
+            return patch
