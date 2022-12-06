@@ -197,32 +197,38 @@ class Raster(object):
             # aoi = self.raster.rio.reproject_match(aoi_si)            
             # print(aoi.values.shape)
             
-            #rescale to between min and max -> this should be precomputed and stored in raster_metadata
-            aoi.values = (aoi.values - self.min) / self.range
             
-            if(self.out_dtype == "uint8"):
-                aoi.data *= 255
-                t = torch.from_numpy(aoi.values.astype(np.uint8))
-                # aoi.values.astype(np.uint8)
-                
-            elif (self.out_dtype == "int16"):
-                aoi.data *= (65536/2 - 1) 
-                t = torch.from_numpy(aoi.values.astype(np.int16))
-                # aoi.values.astype(np.uint16)
+            
+#             if (self.norm == "min-max"):
+#                 #rescale to between min and max -> this should be precomputed and stored in raster_metadata
+#                 aoi.values = (aoi.values - self.min) / self.range
+#                 if(self.out_dtype == "uint8"):
+#                     aoi.data *= 255
+#                     t = torch.from_numpy(aoi.values.astype(np.uint8))
+#                     # aoi.values.astype(np.uint8)
+
+#                 elif (self.out_dtype == "int16"):
+#                     aoi.data *= (65536/2 - 1) 
+#                     t = torch.from_numpy(aoi.values.astype(np.int16))
+#                     # aoi.values.astype(np.uint16)
                                      
-                
             
             #TODO Convert to EA projection here:
             #Convert to uint8, since the values were already scaled to between 0 and 255 before
             # t_env = torch.from_numpy(cropped_env_raster.values.astype(np.uint8))
             t = torch.from_numpy(aoi.values)
-            # t_env = torch.from_numpy(cropped_env_raster.values.astype(np.uint8))
+            if self.norm == 'std':
+                print("standardizing")
+                transform = T.Compose ([T.CenterCrop(size=t.shape[1]),
+                                        T.Normalize((self.mean),(self.std))])
+            else:
+                transform = T.CenterCrop(size=(t.shape[1]))
             #crop to shorter side
-            t = T.CenterCrop(size=(t.shape[1]))(t)
+            t = transform(t)
             #set nans to zero
             t[torch.isnan(t)] = 0
             
-            print(t.shape, type(t))
+            # print(t.shape, type(t))
 
         except ValueError as e:
             if "No data found in bounds" in str(e):
@@ -265,12 +271,12 @@ class Raster(object):
         return "name: " + self.name + "\n"
 
 
-class PatchExtractor(object):
+class EnvPatchExtractor(object):
     """
     Handles the loading and extraction of an environmental tensor from multiple rasters given GPS coordinates.
     """
 
-    def __init__(self, root_path: str, side_len_m: int = 1000, out_dtype:str="float"):
+    def __init__(self, root_path: str, side_len_m: int = 1000, out_dtype:str="float", norm:str="None"):
         """Constructor
 
         Parameters
@@ -288,6 +294,7 @@ class PatchExtractor(object):
         self.side_len = side_len_m
         self.rasters_us: list[Raster] = []
         self.out_dtype = out_dtype
+        self.norm = norm
 
     def add_all_rasters(self, **kwargs: Any) -> None:
         """Add all variables (rasters) available
@@ -334,7 +341,7 @@ class PatchExtractor(object):
         kwargs : dict
             Updates the default arguments passed to Raster (nan, out_of_bounds, etc.)
         """
-        r_us = Raster(self.root_path + raster_name, raster_name, "USA", side_len_m=self.side_len, out_dtype=self.out_dtype, **kwargs)
+        r_us = Raster(self.root_path + raster_name, raster_name, "USA", side_len_m=self.side_len, out_dtype=self.out_dtype, norm=self.norm, **kwargs)
         # r_fr = Raster(self.root_path / raster_name, "FR", size=self.size, **kwargs)
 
         self.rasters_us.append(r_us)
