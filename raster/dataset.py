@@ -171,6 +171,8 @@ class Dataset(Dataset):
 
         if self.training_data:
             target = self.targets[index]
+            #convert to tensor
+            target = torch.from_numpy(target)
 
             if self.target_transform:
                 target = self.target_transform(target)
