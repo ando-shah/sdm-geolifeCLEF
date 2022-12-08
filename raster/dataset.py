@@ -103,7 +103,7 @@ class Dataset(Dataset):
         
         if (self.env_patch_extractor == None):
             print("Setting up env raster extractor..")
-            self.env_patch_extractor = EnvPatchExtractor(self.raster_root, side_len_m=self.side_len_m, out_dtype="uint8", norm="std")
+            self.env_patch_extractor = EnvPatchExtractor(self.raster_root, side_len_m=self.side_len_m, norm="std")
             # self.env_patch_extractor.append("bio_1")
             # self.env_patch_extractor.add_all_pedologic_rasters()
             self.env_patch_extractor.add_all_rasters()
@@ -136,11 +136,6 @@ class Dataset(Dataset):
         t_si, aoi_si, coods = self.si_patch_extractor[index]
         print("Extracting env patches...")
         t_env = self.env_patch_extractor[(coods, aoi_si)]
-        
-        # latitude = self.coordinates[index][0]
-        # longitude = self.coordinates[index][1]
-        # observation_id = self.observation_ids[index]
-
        
         # FIXME: add back landcover one hot encoding?
         # lc = patches[3]
@@ -149,19 +144,17 @@ class Dataset(Dataset):
         # col_index = np.tile(np.arange(lc.shape[1]), (lc.shape[0], 1))
         # lc_one_hot[lc, row_index, col_index] = 1
 
-        # Extracting patch from rasters
-#         if self.patch_extractor is not None:
-#             environmental_patches = self.patch_extractor[(latitude, longitude)]
-#             patches = patches + [environmental_patches]
 
-#         # Concatenate all patches into a single tensor
-#         if len(patches) == 1:
-#             patches = patches[0]
-
+        print("Pre-SI transform[{}]: {:.4}/{:.4}".format(t_si.shape, t_si.max(), t_si.min()))
         if self.si_transform:
+            # t_si_rgb = self.si_transform(t_si[0:3])
+            # t_si_nir = self.si_transform(t_si[3:])
+            # t_si = torch.cat((t_si_rgb, t_si_nir),0)
             t_si = self.si_transform(t_si)
             
-        if self.si_transform:
+        print("Post-SI transform[{}]: {:.4}/{:.4}".format(t_si.shape, t_si.max(), t_si.min()))
+            
+        if self.env_transform:
             t_env = self.env_transform(t_env)
             
         #combine the patch tensors

@@ -56,33 +56,6 @@ raster_metadata = {
     'sndppt': {'min_val':0.0, 'max_val':99.0, 'mean':41.921875, 'std':13.934831619262695, 'nan':-32768.0, 'bits':16}
 }
 
-# [bio_1]  'min_val':-7.0958333015441895, 'max_val':27.608333587646484, 'mean'=10.678206443786621, 'std'=6.177802562713623, 'nan'=-3.3999999521443642e+38, type=float32
-# [bio_2]  'min_val':1.0, 'max_val':22.233333587646484, 'mean'=13.550623893737793, 'std'=2.5262041091918945, 'nan'=-3.3999999521443642e+38, type=float32
-# [bio_3]  'min_val':20.337738037109375, 'max_val':100.0, 'mean'=37.29763412475586, 'std'=9.503908157348633, 'nan'=-3.3999999521443642e+38, type=float32
-# [bio_4]  'min_val':0.0, 'max_val':1414.1912841796875, 'mean'=873.933837890625, 'std'=233.8889923095703, 'nan'=-3.3999999521443642e+38, type=float32
-# [bio_5]  'min_val':0.5, 'max_val':46.20000076293945, 'mean'=29.70604133605957, 'std'=4.532764911651611, 'nan'=-3.3999999521443642e+38, type=float32
-# [bio_6]  'min_val':-27.399999618530273, 'max_val':20.700000762939453, 'mean'=-7.717265605926514, 'std'=8.616811752319336, 'nan'=-3.3999999521443642e+38, type=float32
-# [bio_7]  'min_val':1.0, 'max_val':51.69999694824219, 'mean'=37.42325973510742, 'std'=6.396346092224121, 'nan'=-3.3999999521443642e+38, type=float32
-# [bio_8]  'min_val':-12.883333206176758, 'max_val':33.883331298828125, 'mean'=15.953109741210938, 'std'=8.053345680236816, 'nan'=-3.3999999521443642e+38, type=float32
-# [bio_9]  'min_val':-18.133333206176758, 'max_val':33.66666793823242, 'mean'=5.389002799987793, 'std'=11.827828407287598, 'nan'=-3.3999999521443642e+38, type=float32
-# [bio_10]  'min_val':-1.5833332538604736, 'max_val':36.38333511352539, 'mean'=21.236074447631836, 'std'=4.630420684814453, 'nan'=-3.3999999521443642e+38, type=float32
-# [bio_11]  'min_val':-18.516666412353516, 'max_val':24.149999618530273, 'mean'=-0.26365163922309875, 'std'=8.591254234313965, 'nan'=-3.3999999521443642e+38, type=float32
-# [bio_12]  'min_val':44.0, 'max_val':3452.0, 'mean'=747.0883178710938, 'std'=406.6944580078125, 'nan'=-3.3999999521443642e+38, type=float32
-# [bio_13]  'min_val':9.0, 'max_val':618.0, 'mean'=101.50006103515625, 'std'=52.118675231933594, 'nan'=-3.3999999521443642e+38, type=float32
-# [bio_14]  'min_val':0.0, 'max_val':175.0, 'mean'=31.740530014038086, 'std'=26.625768661499023, 'nan'=-3.3999999521443642e+38, type=float32
-# [bio_15]  'min_val':5.005423069000244, 'max_val':142.28643798828125, 'mean'=43.1767692565918, 'std'=24.751798629760742, 'nan'=-3.3999999521443642e+38, type=float32
-# [bio_16]  'min_val':20.0, 'max_val':1571.0, 'mean'=274.7115173339844, 'std'=145.2008514404297, 'nan'=-3.3999999521443642e+38, type=float32
-# [bio_17]  'min_val':0.0, 'max_val':550.0, 'mean'=110.51180267333984, 'std'=87.41494750976562, 'nan'=-3.3999999521443642e+38, type=float32
-# [bio_18]  'min_val':2.0, 'max_val':975.0, 'mean'=221.00624084472656, 'std'=115.31585693359375, 'nan'=-3.3999999521443642e+38, type=float32
-# [bio_19]  'min_val':11.0, 'max_val':1461.0, 'mean'=155.13890075683594, 'std'=143.87017822265625, 'nan'=-3.3999999521443642e+38, type=float32
-# [bdticm]  'min_val':0.0, 'max_val':112467.0, 'mean'=2632.716751534344, 'std'=3209.621533299418, 'nan'=-2147483647.0, type=int32
-# [bldfie]  'min_val':93.0, 'max_val':1828.0, 'mean'=1378.64892578125, 'std'=137.49325561523438, 'nan'=-32768.0, type=int16
-# [cecsol]  'min_val':0.0, 'max_val':385.0, 'mean'=21.063919067382812, 'std'=7.909461975097656, 'nan'=-32768.0, type=int16
-# [clyppt]  'min_val':0.0, 'max_val':81.0, 'mean'=22.082963943481445, 'std'=9.078008651733398, 'nan'=-32768.0, type=int16
-# [orcdrc]  'min_val':0.0, 'max_val':524.0, 'mean'=23.83712387084961, 'std'=21.804183959960938, 'nan'=-32768.0, type=int16
-# [phihox]  'min_val':32.0, 'max_val':98.0, 'mean'=64.52721405029297, 'std'=11.172294616699219, 'nan'=-32768.0, type=int16
-# [sltppt]  'min_val':0.0, 'max_val':86.0, 'mean'=35.99134826660156, 'std'=11.597208023071289, 'nan'=-32768.0, type=int16
-# [sndppt]  'min_val':0.0, 'max_val':99.0, 'mean'=41.921875, 'std'=13.934831619262695, 'nan'=-32768.0, type=int16
 
 
 # fmt: off
@@ -154,7 +127,7 @@ class Raster(object):
         
         
         filename = "{:}/{:}_{:}.tif".format(self.path,self.name,country)
-        print("Opening Raster file for ", self.name)
+        print("Processing Raster file for ", self.name)
         # print(filename, name)
     
         with rasterio.Env():
@@ -164,7 +137,7 @@ class Raster(object):
                 # self.raster = self.raster.rio.reproject(self.dst_crs)
 
         # print("Completed Setup of Raster {:} in CRS = {:}".format(self.name, self.crs, self.raster.data.dtype))
-        print("Completed Setup of Raster {:} ".format(self.name))
+        # print("Completed Setup of Raster {:} with mean[{:.2} / std[{:.2}]] ".format(self.name, self.mean, self.std))
 
     
     def _extract_patch(self, coordinates):
@@ -218,7 +191,7 @@ class Raster(object):
             # t_env = torch.from_numpy(cropped_env_raster.values.astype(np.uint8))
             t = torch.from_numpy(aoi.values)
             if self.norm == 'std':
-                print("standardizing")
+                # print("standardizing")
                 transform = T.Compose ([T.CenterCrop(size=t.shape[1]),
                                         T.Normalize((self.mean),(self.std))])
             else:
@@ -226,7 +199,9 @@ class Raster(object):
             #crop to shorter side
             t = transform(t)
             #set nans to zero
-            t[torch.isnan(t)] = 0
+            t[torch.isnan(t)] = 0.
+            
+            print(self.name, t.max(), t.min())
             
             # print(t.shape, type(t))
 

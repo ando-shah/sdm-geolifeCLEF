@@ -9,8 +9,16 @@ from inception import InceptionD, InceptionE
 
 class InceptionEnv(nn.Module):
 
-    def __init__(self, n_labels=4520, n_input=77, dropout=0.7, last_layer=True, logit=False, exp=False,
+    def __init__(self, n_labels=4520, n_input=77, dropout=0.7, last_layer_mode:str="mlmc", logit=False, exp=False,
                  normalize_weight=1.):
+        """
+        Inputs:
+            n_labels : Number of classes
+            n_inputs : Number of pancake layers
+            last_layer_mode : Considering it as a Multi-Label Multi-Class (mlmc) or Single-label multi-class (slmc) model
+                options: "mlmc" or "slmc"
+        """
+        
         super(InceptionEnv, self).__init__()
         if n_input >= 15:
             self.Conv2d_1a_3x3 = BasicConv2d(n_input, 80, kernel_size=3, stride=1, padding=1)
@@ -40,7 +48,7 @@ class InceptionEnv(nn.Module):
         self.fc = nn.Linear(2048, n_labels)
 
         self.dropout = dropout
-        self.last_layer = last_layer
+        self.last_layer_mode = last_layer_mode
         self.logit = logit
         self.exp = exp
 
@@ -121,17 +129,24 @@ class InceptionEnv(nn.Module):
 
         # 1 x 1 x 2048
         x = x.view(x.size(0), -1)
+        
+        # 2048
+        x = self.fc(x)
 
-        if self.last_layer:
-            # 2048
-            x = self.fc(x)
-            # (num_classes)
-            if not self.training and not self.logit and not self.exp:
-                x = F.softmax(x, dim=-1)
-            elif not self.training and not self.logit:
-                x = x.exp()
+        if self.last_layer_mode == "slmc":
+            x = F.softmax(x, dim=-1)
+        else: #assume mlmc otherwise
+            x = torch.sigmoid(x)
+            #Consider leaky relu also
+            # x = F.LeakyReLU(x)
+            
+            # # (num_classes)
+            # if not self.training and not self.logit and not self.exp:
+            #     x = F.softmax(x, dim=-1)
+            # elif not self.training and not self.logit:
+            #     x = x.exp()
 
         return x
     
     def __repr__(self):
-        return '(Environmental Inception)'
+        return 'InceptionNet in {} mode'.format(self.last_layer_mode)

@@ -130,18 +130,27 @@ class SIPatchExtractor(object):
                         aspect_ratio = aoi_si.shape[2]/aoi_si.shape[1]
                         new_height = self.side_px
                         new_width = aspect_ratio * new_height
-                        print(new_height, new_width)
+                        # print(new_height, new_width)
 
                         #downsample raster                                    # (height, width)
                         aoi_si = aoi_si.rio.reproject(aoi_si.rio.crs, \
                                                       shape=(int(new_height), int(new_width)), resampling=Resampling.bilinear)
-                        print(aoi_si.shape)
                         
-                        t_rgb = torch.from_numpy(aoi_si.values.astype(np.uint8))
-                        postprocess = T.Compose ([T.CenterCrop((t_rgb.shape[1])),])
+                        crop_px = aoi_si.shape[1]
+                        # print(aoi_si.shape, aoi_si.values.astype(float).shape)
+                        print("RGB max = ", aoi_si.values.max())
+                        
+                        #dont convert to uint8, otherwise future transforms dont work -> needs to be float
+                        # t_rgb = torch.from_numpy(aoi_si.values.astype(np.uint8)) 
+                        #reduce bit resolution to 8 bit by dividing by 255 and convert to float (not uint8)
+                        t_rgb = torch.tensor(aoi_si.values/255., dtype=float)
+                        t_rgb = T.CenterCrop((crop_px))(t_rgb)
+                        # postprocess = T.Compose ([T.ToTensor(),
+                        #                           T.CenterCrop((crop_px))])
                                                  # T.Resize(self.side_px)]) TODO Put in normalize
-
-                        t_rgb = postprocess(t_rgb)
+                        # t_rgb = postprocess(aoi_si.values.astype(float))
+                        # print("t_rgb:", t_rgb.shape)
+                        # t_rgb = t_rgb/255 #convert to 8 bit
 
 
                     except ValueError as e:
@@ -158,12 +167,19 @@ class SIPatchExtractor(object):
                         aoi_si_nir = rioxarray.open_rasterio(f).rio.clip([mask_geom], from_disk=True)
                         aoi_si_nir = aoi_si_nir.rio.reproject(aoi_si_nir.rio.crs, \
                                                       shape=(int(new_height), int(new_width)), resampling=Resampling.bilinear)
-                        print(aoi_si_nir.shape)
+                        print("NIR max = ", aoi_si_nir.values.max())
+                        crop_px = aoi_si_nir.shape[1]
+                    
+                        #It seems that NIR is in the range 1-10000, not 1 to 256 like RGB!!
+                        t_nir = torch.tensor(aoi_si_nir.values/10000., dtype=float)
+                        t_nir = T.CenterCrop((crop_px))(t_nir)
+
+
+#                         t_nir = torch.from_numpy(aoi_si_nir.values.astype(np.uint8))
+#                         postprocess = T.Compose ([T.CenterCrop((t_nir.shape[1])),])
                         
-                        t_nir = torch.from_numpy(aoi_si_nir.values.astype(np.uint8))
-                        postprocess = T.Compose ([T.CenterCrop((t_nir.shape[1])),])
+#                         t_nir = postprocess(t_nir)
                         
-                        t_nir = postprocess(t_nir)
                         #otherwise images dont display properly
                         #but uint8 conversion has already taken care of this downresolution
                         # t /= 255 
@@ -176,6 +192,7 @@ class SIPatchExtractor(object):
             
                         
             #Combine the (3,W,H) and (1,W,H) tensors into (4,W,H)
+            print(t_rgb.shape, t_nir.shape)
             t_out = torch.cat((t_rgb, t_nir), 0)
             assert(t_out.shape == (4,self.side_px,self.side_px))
             # out_image = np.vstack((image_rgb, image_nir))
