@@ -4,10 +4,10 @@ from torch.autograd import Variable
 from torch.optim.lr_scheduler import MultiStepLR
 
 from predict import predict
-from lib.evaluation import evaluate
-from lib.cnn.utils import save_model_state
-from lib.metrics import ValidationAccuracyMultipleBySpecies
-from lib.metrics import ValidationAccuracyMultiple
+from evaluation import evaluate
+from utils import save_model_state
+from metrics import ValidationAccuracyMultipleBySpecies
+from metrics import ValidationAccuracyMultiple
 
 
 def fit(model, train, validation, iterations=(90, 130, 150, 170, 180),  log_modulo=500, val_modulo=5,

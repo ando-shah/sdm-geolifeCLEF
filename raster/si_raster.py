@@ -47,7 +47,7 @@ class SIPatchExtractor(object):
         
         self.side_length = side_length_m
         self.side_px = side_px
-        self.data = data
+        self.data = data.copy()
     
 
     def clean(self) -> None:

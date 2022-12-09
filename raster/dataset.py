@@ -115,8 +115,8 @@ class Dataset(Dataset):
             #convert to numpy (get rid of geometry and grid_id columns; grid_id is same as index), requantize to 0 to 1.
             self.targets = self.observations.drop(['geometry'], axis=1).set_index('grid_id', drop=True).to_numpy()/255.
 
-        else:
-            self.targets = None
+        else: #for val
+            self.targets = self.observations.drop(['geometry'], axis=1).to_numpy()
 
         # FIXME: add back landcover one hot encoding?
         # self.one_hot_size = 34
@@ -172,4 +172,4 @@ class Dataset(Dataset):
 
             return patch, target
         else:
-            return patch
+            return patch, target
