@@ -53,7 +53,7 @@ class Dataset(Dataset):
         raster_root: Optional[str],
         subset: str,
         centroids: gpd.GeoDataFrame,
-        observations: gpd.GeoDataFrame,
+        observations,
         side_len_m: int=10000,
         side_px: int=64,
         region: str = "us",
@@ -64,6 +64,7 @@ class Dataset(Dataset):
         si_transform: Optional[Callable] = None,
         env_transform: Optional[Callable] = None,
         target_transform: Optional[Callable] = None,
+        verbose: bool=False
     ):
         self.raster_root = raster_root
         self.subset = subset
@@ -80,6 +81,7 @@ class Dataset(Dataset):
         
         self.side_len_m = side_len_m
         self.side_px = side_px
+        self.verbose = verbose
 
         possible_subsets = ["train", "val",  "test"]
         if subset not in possible_subsets:
@@ -103,7 +105,8 @@ class Dataset(Dataset):
         
         if (self.env_patch_extractor == None):
             print("Setting up env raster extractor..")
-            self.env_patch_extractor = EnvPatchExtractor(self.raster_root, side_len_m=self.side_len_m, norm="std")
+            # self.env_patch_extractor = EnvPatchExtractor(self.raster_root, side_len_m=self.side_len_m, norm="std")
+            self.env_patch_extractor = EnvPatchExtractor(self.raster_root, side_len_m=self.side_len_m, norm="min-max")
             # self.env_patch_extractor.append("bio_1")
             # self.env_patch_extractor.add_all_pedologic_rasters()
             self.env_patch_extractor.add_all_rasters()
@@ -113,10 +116,10 @@ class Dataset(Dataset):
             # self.grid_ids = self.centroids.index
             # self.coordinates = self.centroids[["lon", "lat"]].values
             #convert to numpy (get rid of geometry and grid_id columns; grid_id is same as index), requantize to 0 to 1.
-            self.targets = self.observations.drop(['geometry'], axis=1).set_index('grid_id', drop=True).to_numpy()/255.
+            self.targets = self.observations.drop(['geometry'], axis=1).set_index('grid_id', drop=True).to_numpy(np.uint8)
 
         else: #for val
-            self.targets = self.observations.drop(['geometry'], axis=1).to_numpy()
+            self.targets = self.observations.to_numpy(np.uint8) * 255
 
         # FIXME: add back landcover one hot encoding?
         # self.one_hot_size = 34
@@ -124,6 +127,7 @@ class Dataset(Dataset):
 
 
     def __len__(self) -> int:
+        # return 32
         return len(self.observations)
 
     def __getitem__(
@@ -132,9 +136,15 @@ class Dataset(Dataset):
     ) :
         
         #Extract Si patch first
-        print("Extracting SI patches...")
+        if self.verbose:
+            print("[Extracting Patches]:", index)
         t_si, aoi_si, coods = self.si_patch_extractor[index]
-        print("Extracting env patches...")
+        
+        if(aoi_si is None):
+            return (None, None)
+        
+        # print("[Extracting Env]:", index)
+        # print("Extracting env patches...")
         t_env = self.env_patch_extractor[(coods, aoi_si)]
        
         # FIXME: add back landcover one hot encoding?
@@ -145,14 +155,14 @@ class Dataset(Dataset):
         # lc_one_hot[lc, row_index, col_index] = 1
 
 
-        print("Pre-SI transform[{}]: {:.4}/{:.4}".format(t_si.shape, t_si.max(), t_si.min()))
+        # print("Pre-SI transform[{}]: {:.4}/{:.4}".format(t_si.shape, t_si.max(), t_si.min()))
         if self.si_transform:
             # t_si_rgb = self.si_transform(t_si[0:3])
             # t_si_nir = self.si_transform(t_si[3:])
             # t_si = torch.cat((t_si_rgb, t_si_nir),0)
             t_si = self.si_transform(t_si)
             
-        print("Post-SI transform[{}]: {:.4}/{:.4}".format(t_si.shape, t_si.max(), t_si.min()))
+        # print("Post-SI transform[{}]: {:.4}/{:.4}".format(t_si.shape, t_si.max(), t_si.min()))
             
         if self.env_transform:
             t_env = self.env_transform(t_env)
@@ -160,16 +170,20 @@ class Dataset(Dataset):
         #combine the patch tensors
         patch =  torch.cat((t_si, t_env), 0)
         
-        print(patch.shape)
+        patch = patch.numpy()
+        
+        # print(patch.shape)
 
-        if self.training_data:
-            target = self.targets[index]
-            #convert to tensor
-            target = torch.from_numpy(target)
+        # if self.training_data:
+        target = self.targets[index]
+        #convert to tensor
+        # target = torch.from_numpy(target).float()
 
-            if self.target_transform:
-                target = self.target_transform(target)
+        if self.target_transform:
+            target = self.target_transform(target)
+            
+        if self.verbose:
+            print("[Completed Extraction]:", index)
 
-            return patch, target
-        else:
-            return patch, target
+        return patch, target
+    

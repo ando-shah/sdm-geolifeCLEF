@@ -5,7 +5,9 @@ import torch
 from torch.utils.data import Dataset
 
 import zarr
+from numcodecs import blosc
 
+blosc.use_threads = False
 
 class Zarr_Dataset(Dataset):
     """Pytorch dataset handler for GeoLifeCLEF 2022 dataset.
@@ -22,6 +24,9 @@ class Zarr_Dataset(Dataset):
         A function/transform that takes in the target and transforms it.
     verbose:
         whether to print verbose logs or not
+    persist:
+        whether to store it in memory or keep on disk
+        True: load to memory
     """
 
     def __init__(
@@ -30,6 +35,7 @@ class Zarr_Dataset(Dataset):
         subset: str="train",
         patch_transform: Optional[Callable] = None,
         target_transform: Optional[Callable] = None,
+        persist: bool=False,
         verbose: bool=False
     ):
         self.filepath = filepath
@@ -37,6 +43,9 @@ class Zarr_Dataset(Dataset):
         self.patch_transform = patch_transform
         self.target_transform = target_transform
         self.verbose = verbose
+        self.persist = persist
+        
+        blosc.use_threads = False
 
         possible_subsets = ["train", "val",  "test"]
         if subset not in possible_subsets:
@@ -51,7 +60,10 @@ class Zarr_Dataset(Dataset):
         else:
             self.training_data = False
         
-        self.data = zarr.open(self.filepath, mode='r')
+        if not self.persist:
+            self.data = zarr.open(self.filepath, mode='r',synchronizer=zarr.ThreadSynchronizer())
+        else:
+            self.data = zarr.load(self.filepath)
         
     def __getitem__(
         self,
@@ -74,7 +86,7 @@ class Zarr_Dataset(Dataset):
             target = self.target_transform(target)
             
         # if self.verbose:
-        print("[Completed Extraction]:", index)
+        # print("[Completed Extraction]:", index)
             
         return patch, target
     
