@@ -167,43 +167,29 @@ class Raster(object):
         try:
             #pre-clip
             aoi = self.raster.rio.clip([mask_geom], from_disk=True).rio.reproject_match(aoi_si,resampling=Resampling.bilinear)
-            # aoi = self.raster.rio.reproject_match(aoi_si)            
-            # print(aoi.values.shape)
-            
-            
-            
-#             if (self.norm == "min-max"):
-#                 #rescale to between min and max -> this should be precomputed and stored in raster_metadata
-#                 aoi.values = (aoi.values - self.min) / self.range
-#                 if(self.out_dtype == "uint8"):
-#                     aoi.data *= 255
-#                     t = torch.from_numpy(aoi.values.astype(np.uint8))
-#                     # aoi.values.astype(np.uint8)
 
-#                 elif (self.out_dtype == "int16"):
-#                     aoi.data *= (65536/2 - 1) 
-#                     t = torch.from_numpy(aoi.values.astype(np.int16))
-#                     # aoi.values.astype(np.uint16)
-                                     
             
             #TODO Convert to EA projection here:
             #Convert to uint8, since the values were already scaled to between 0 and 255 before
             # t_env = torch.from_numpy(cropped_env_raster.values.astype(np.uint8))
-            t = torch.from_numpy(aoi.values)
+            crop_side = aoi.values.shape[1]
             if self.norm == 'std':
                 # print("standardizing")
-                transform = T.Compose ([T.CenterCrop(size=t.shape[1]),
+                transform = T.Compose ([T.CenterCrop(size=crop_side),
                                         T.Normalize((self.mean),(self.std))])
+            elif self.norm == "min-max":
+                # print('min-max')
+                aoi.values = (aoi.values - self.min) / self.range
+                transform = T.CenterCrop(size=(crop_side))
             else:
-                transform = T.CenterCrop(size=(t.shape[1]))
-            #crop to shorter side
+                transform = T.CenterCrop(size=(crop_side))
+                
+            t = torch.from_numpy(aoi.values)
+            
             t = transform(t)
             #set nans to zero
             t[torch.isnan(t)] = 0.
-            
-            print(self.name, t.max(), t.min())
-            
-            # print(t.shape, type(t))
+        
 
         except ValueError as e:
             if "No data found in bounds" in str(e):

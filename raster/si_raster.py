@@ -138,7 +138,7 @@ class SIPatchExtractor(object):
                         
                         crop_px = aoi_si.shape[1]
                         # print(aoi_si.shape, aoi_si.values.astype(float).shape)
-                        print("RGB max = ", aoi_si.values.max())
+                        # print("RGB max = ", aoi_si.values.max())
                         
                         #dont convert to uint8, otherwise future transforms dont work -> needs to be float
                         # t_rgb = torch.from_numpy(aoi_si.values.astype(np.uint8)) 
@@ -156,7 +156,7 @@ class SIPatchExtractor(object):
                     except ValueError as e:
                         if "Input shapes do not overlap raster." in str(e):
                             print("Couldnt open RGB URL or requested grid doesnt overlap")
-            
+                        return (None, None, self.getlonlat(idx))
             
             #NIR
             with rasterio.Env():
@@ -167,7 +167,7 @@ class SIPatchExtractor(object):
                         aoi_si_nir = rioxarray.open_rasterio(f).rio.clip([mask_geom], from_disk=True)
                         aoi_si_nir = aoi_si_nir.rio.reproject(aoi_si_nir.rio.crs, \
                                                       shape=(int(new_height), int(new_width)), resampling=Resampling.bilinear)
-                        print("NIR max = ", aoi_si_nir.values.max())
+                        # print("NIR max = ", aoi_si_nir.values.max())
                         crop_px = aoi_si_nir.shape[1]
                     
                         #It seems that NIR is in the range 1-10000, not 1 to 256 like RGB!!
@@ -189,10 +189,10 @@ class SIPatchExtractor(object):
                         if "Input shapes do not overlap raster." in str(e):
                             print("Couldnt open NIR URL or requested grid doesnt overlap")
             
-            
+                        return (None, None, self.getlonlat(idx))
                         
             #Combine the (3,W,H) and (1,W,H) tensors into (4,W,H)
-            print(t_rgb.shape, t_nir.shape)
+            # print(t_rgb.shape, t_nir.shape)
             t_out = torch.cat((t_rgb, t_nir), 0)
             assert(t_out.shape == (4,self.side_px,self.side_px))
             # out_image = np.vstack((image_rgb, image_nir))
