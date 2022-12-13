@@ -17,7 +17,7 @@ def check_for_existing_clusters():
     return True
 
 #max is 227
-def setup_dask_cluster(max=50, mem=16, adapt=True):
+def setup_dask_cluster(min=2, max=50, mem=16, adapt=True):
     global cluster_options, cluster, client
     
     cluster_options["worker_memory"] = mem
@@ -36,7 +36,7 @@ def setup_dask_cluster(max=50, mem=16, adapt=True):
         print("Getting client..")
         client = cluster.get_client()
         if adapt:
-            cluster.adapt(minimum=2, maximum=max)
+            cluster.adapt(minimum=min, maximum=max)
         else:
             cluster.scale(max)
 

@@ -115,7 +115,7 @@ class Raster(object):
         self.raster = None
         self.norm = norm
         
-        self.crop_buf_perc = 0.15 #-> 15% extra crop for warping issues
+        self.crop_buf_perc = 0.25 #-> 25% extra crop for warping issues
         
         
         #save all the metadata
