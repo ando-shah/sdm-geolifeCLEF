@@ -69,9 +69,9 @@ class Zarr_Dataset(Dataset):
                 self.labels = zarr.open(self.filepath_l, mode='r',synchronizer=zarr.ThreadSynchronizer())
             
         else:
-            self.filepath_f:
+            if self.filepath_f:
                 self.features = zarr.load(self.filepath_f)
-            self.filepath_l:
+            if self.filepath_l:
                 self.labels   = zarr.load(self.filepath_l)
             
         
@@ -103,6 +103,12 @@ class Zarr_Dataset(Dataset):
     def __len__(self) -> int:
         # return 32
         return self.features.shape[0]
+    
+    def info(self):
+        print ("Features:\n ", self.features.info)
+        print ("Labels:\n ", self.labels.info)
+        
+        # return (self.features.info, self.labels.info)
     
     
     
