@@ -105,8 +105,12 @@ class Zarr_Dataset(Dataset):
         return self.features.shape[0]
     
     def info(self):
-        print ("Features:\n ", self.features.info)
-        print ("Labels:\n ", self.labels.info)
+        if self.persist:
+            print ("Features:\n ", self.features.shape)
+            print ("Labels:\n ", self.labels.shape)
+        else:
+            print ("Features:\n ", self.features.info)
+            print ("Labels:\n ", self.labels.info)
         
         # return (self.features.info, self.labels.info)
     
